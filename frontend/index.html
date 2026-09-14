@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>frontend</title>
+</head>
+
+<body>
+<main class="app">
+  <h1>AI Code Debugger</h1>
+
+  <label for="language">Programming language</label>
+  <select id="language">
+    <option value="JAVA">Java</option>
+    <option value="PYTHON">Python</option>
+    <option value="CPP">C++</option>
+  </select>
+
+  <div id="editor"></div>
+
+  <label for="program-input">Program input (optional)</label>
+  <textarea id="program-input" placeholder="Enter input for the
+      program"></textarea>
+
+  <button id="analyze-button">Analyze Code</button>
+
+  <pre id="result">Your result will appear here.</pre>
+</main>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
