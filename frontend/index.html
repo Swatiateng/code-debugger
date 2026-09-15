@@ -1,34 +1,492 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>frontend</title>
+  <title>CodeMind AI</title>
 </head>
 
 <body>
-<main class="app">
-  <h1>AI Code Debugger</h1>
 
-  <label for="language">Programming language</label>
-  <select id="language">
-    <option value="JAVA">Java</option>
-    <option value="PYTHON">Python</option>
-    <option value="CPP">C++</option>
-  </select>
+  <nav class="navbar">
 
-  <div id="editor"></div>
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span>CodeMind AI</span>
+    </div>
 
-  <label for="program-input">Program input (optional)</label>
-  <textarea id="program-input" placeholder="Enter input for the
-      program"></textarea>
+    <div class="nav-links">
+      <button class="nav-link active" data-page="dashboard">Dashboard</button>
+      <button class="nav-link" data-page="codeLab">Code Lab</button>
+      <button class="nav-link" data-page="compare">Compare</button>
+      <button class="nav-link" data-page="history">History</button>
+    </div>
 
-  <button id="analyze-button">Analyze Code</button>
+  </nav>
+
+
+  <!-- ================= DASHBOARD ================= -->
+
+  <section id="dashboard" class="page-section active-page">
+
+    <div class="dashboard-container">
+
+      <div class="welcome-section">
+        <div>
+          <p class="small-label">AI-POWERED DEVELOPMENT WORKSPACE</p>
+
+          <h1>Welcome to CodeMind AI</h1>
+
+          <p>
+            Write, debug, analyze and compare algorithms
+            in one intelligent coding workspace.
+          </p>
+        </div>
+
+        <button class="primary-button" id="openCodeLab">
+          Open Code Lab →
+        </button>
+      </div>
+
+
+      <div class="stats-grid">
+
+        <div class="stat-card">
+          <span class="stat-icon">⌘</span>
+          <div>
+            <h3>0</h3>
+            <p>Programs Analyzed</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-icon">✓</span>
+          <div>
+            <h3>0</h3>
+            <p>Errors Detected</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-icon">↗</span>
+          <div>
+            <h3>0</h3>
+            <p>Algorithms Compared</p>
+          </div>
+        </div>
+
+      </div>
+
+
+      <div class="section-title">
+        <p class="small-label">QUICK START</p>
+        <h2>Choose what you want to do</h2>
+      </div>
+
+
+      <div class="quick-grid">
+
+        <div class="quick-card" id="quickCodeLab">
+
+          <div class="quick-icon">⌘</div>
+
+          <h3>Code Lab</h3>
+
+          <p>
+            Write and test C++, Java and Python programs
+            using the intelligent code editor.
+          </p>
+
+          <button>Start Coding →</button>
+
+        </div>
+
+
+        <div class="quick-card" id="quickCompare">
+
+          <div class="quick-icon">⇄</div>
+
+          <h3>Algorithm Comparison</h3>
+
+          <p>
+            Compare two algorithms based on execution
+            time and complexity.
+          </p>
+
+          <button>Compare Algorithms →</button>
+
+        </div>
+
+      </div>
+
+
+      <div class="activity-section">
+
+        <div class="section-title">
+          <p class="small-label">RECENT ACTIVITY</p>
+          <h2>Your coding activity</h2>
+        </div>
+
+        <div class="activity-card">
+          <div class="activity-icon">◷</div>
+
+          <div>
+            <h3>No recent activity</h3>
+            <p>
+              Your analyzed programs and comparisons
+              will appear here.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- ================= CODE LAB ================= -->
+
+  <section id="codeLab" class="page-section">
+
+    <div class="code-lab-container">
+
+      <div class="page-header">
+
+        <div>
+          <p class="small-label">AI CODING WORKSPACE</p>
+
+          <h1>Code Lab</h1>
+
+          <p>
+            Write your program, analyze errors and understand
+            your code with AI assistance.
+          </p>
+        </div>
+
+        <div class="ready-status">
+          <span></span>
+          Ready
+        </div>
+
+      </div>
+
+
+      <div class="code-toolbar">
+
+        <div class="language-box">
+
+          <label for="language">
+            Programming Language
+          </label>
+
+          <select id="language">
+
+            <option value="JAVA">Java</option>
+            <option value="PYTHON">Python</option>
+            <option value="CPP">C++</option>
+
+          </select>
+
+        </div>
+
+
+        <div class="toolbar-actions">
+  <button id="analyze-button" class="primary-button">
+    ▶ Run
+  </button>
+
+  <button id="reset-button" class="secondary-button">
+    ↻ Reset
+  </button>
+</div>
+
+      </div>
+
+
+
+      <div class="workspace">
+
+        <!-- CODE EDITOR -->
+
+        <div class="editor-panel">
+
+          <div class="panel-header">
+
+            <div>
+              <span class="panel-dot"></span>
+              <strong>Code Editor</strong>
+            </div>
+
+            <span class="file-name">
+              Main.java
+            </span>
+
+          </div>
+
+          <div id="editor"></div>
+
+        </div>
+
+
+
+        <!-- AI DEBUGGER -->
+
+        <div class="ai-debugger-panel">
+
+          <div class="panel-header">
+
+            <div>
+              <span class="ai-icon">✦</span>
+              <strong>AI Debugger</strong>
+            </div>
+
+            <span class="ai-status">
+              AI Analysis
+            </span>
+
+          </div>
+
+
+          <div class="ai-debugger-content">
+
+            <div class="ai-empty-state">
+
+              <div class="ai-big-icon">✦</div>
+
+              <h3>AI Debugger Ready</h3>
+
+              <p>
+                Click <strong>Analyze Code</strong> to
+                inspect your program and receive
+                line-by-line explanations.
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+     
+
+<!-- RESULT -->
+
+<div class="output-panel">
+
+  <div class="panel-header">
+
+    <div>
+      <span class="panel-dot"></span>
+      <strong>Execution & Analysis Result</strong>
+    </div>
+
+  </div>
 
   <pre id="result">Your result will appear here.</pre>
-</main>
 
-<script type="module" src="/src/main.js"></script>
+</div>
+
+
+<!-- PROGRAM INPUT -->
+
+<div class="input-panel">
+
+  <div class="panel-header">
+    <strong>Program Input</strong>
+    <span>Optional</span>
+  </div>
+
+  <textarea
+    id="program-input"
+    placeholder="Enter input for the program..."
+  ></textarea>
+
+</div>
+
+</div>
+
+</section>
+
+  
+
+
+
+  <!-- ================= COMPARE ================= -->
+
+  <section id="compare" class="page-section">
+
+    <div class="dashboard-container">
+
+      <div class="page-header">
+
+        <div>
+          <p class="small-label">ALGORITHM ANALYSIS</p>
+
+          <h1>Algorithm Comparison</h1>
+
+          <p>
+            Compare algorithms based on performance,
+            complexity and execution time.
+          </p>
+        </div>
+
+      </div>
+
+
+      <div class="coming-card">
+
+        <div class="coming-icon">⇄</div>
+
+        <h2>Algorithm Comparison</h2>
+
+        <p>
+          This module will allow you to compare two
+          algorithms and visualize their performance.
+        </p>
+
+        <span class="module-status">
+          Coming with backend integration
+        </span>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- ================= HISTORY ================= -->
+
+  <section id="history" class="page-section">
+
+    <div class="dashboard-container">
+
+      <div class="page-header">
+
+        <div>
+          <p class="small-label">YOUR ACTIVITY</p>
+
+          <h1>History</h1>
+
+          <p>
+            View your previously analyzed programs
+            and algorithm comparisons.
+          </p>
+        </div>
+
+      </div>
+
+
+      <div class="coming-card">
+
+        <div class="coming-icon">◷</div>
+
+        <h2>No History Yet</h2>
+
+        <p>
+          Your analysis history will appear here
+          after connecting the backend database.
+        </p>
+
+        <span class="module-status">
+          Waiting for backend integration
+        </span>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- ================= NAVIGATION SCRIPT ================= -->
+
+  <script>
+
+    const navLinks = document.querySelectorAll(".nav-link");
+    const pages = document.querySelectorAll(".page-section");
+
+
+    function showPage(pageId) {
+
+      pages.forEach(page => {
+        page.classList.remove("active-page");
+      });
+
+      const selectedPage = document.getElementById(pageId);
+
+      if (selectedPage) {
+        selectedPage.classList.add("active-page");
+      }
+
+
+      navLinks.forEach(link => {
+
+        link.classList.remove("active");
+
+        if (link.dataset.page === pageId) {
+          link.classList.add("active");
+        }
+
+      });
+
+    }
+
+
+    navLinks.forEach(link => {
+
+      link.addEventListener("click", () => {
+
+        showPage(link.dataset.page);
+
+      });
+
+    });
+
+
+    document
+      .getElementById("openCodeLab")
+      .addEventListener("click", () => {
+
+        showPage("codeLab");
+
+      });
+
+
+    document
+      .getElementById("quickCodeLab")
+      .addEventListener("click", () => {
+
+        showPage("codeLab");
+
+      });
+
+
+    document
+      .getElementById("quickCompare")
+      .addEventListener("click", () => {
+
+        showPage("compare");
+
+      });
+      showPage("dashboard");
+
+  </script>
+
+
+  <script type="module" src="/src/main.js"></script>
+
 </body>
+
 </html>

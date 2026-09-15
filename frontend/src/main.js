@@ -1,73 +1,157 @@
- import "./style.css";
-  import * as monaco from "monaco-editor";
+import "./style.css";
+import * as monaco from "monaco-editor";
 
-  // Create the Monaco code editor inside <div id="editor">.
-  const editor = monaco.editor.create(document.getElementById("editor"), {
-    value: `public class Main {
-      public static void main(String[] args) {
-          System.out.println("Hello, World!");
-      }
-  }`,
-    language: "java",
-    theme: "vs-dark",
-    automaticLayout: true
-  });
-
-  // When the language dropdown changes, update Monaco highlighting.
-  document.getElementById("language").addEventListener("change", (event) => {
-      const selectedLanguage = event.target.value;
-
-      const monacoLanguage = {
-        JAVA: "java",
-        PYTHON: "python",
-        CPP: "cpp"
-      };
-
-      // Change Monaco syntax highlighting for the
-      selected language.monaco.editor.setModelLanguage(
-        editor.getModel(),
-        monacoLanguage[selectedLanguage]
-      );
-
-      // Show a suitable starter program for that
-      language.editor.setValue(defaultPrograms[selectedLanguage]);
-    });
-
-  // Send the student's code to the Spring Boot API.
-  document.getElementById("analyze-button").addEventListener("click", async () => {
-    const resultBox = document.getElementById("result");
-
-    resultBox.textContent = "Analyzing code...";
-
-    try {
-      const response = await fetch("/api/code/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          language: document.getElementById("language").value,
-          code: editor.getValue(),
-          input: document.getElementById("program-input").value
-        })
-      });
-
-      const result = await response.json();
-
-      resultBox.textContent = `
-  Status: ${result.status}
-
-  Compiler / Runtime Output:
-  ${result.compilerOutput || "No output"}
-
-  AI Explanation:
-  ${result.aiExplanation || "No explanation"}
-
-  Hint:
-  ${result.hint || "No hint"}
-      `.trim();
-    } catch (error) {
-      resultBox.textContent =
-        "Could not connect to the Spring Boot backend. Ensure it is running on port 8080.";
+const defaultPrograms = {
+  JAVA: `public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
     }
-  });
+}`,
+
+  PYTHON: `print("Hello, World!")`,
+
+  CPP: `#include <iostream>
+using namespace std;
+
+int main() {
+    cout << "Hello, World!";
+    return 0;
+}`
+};
+
+// Create the Monaco code editor
+const editor = monaco.editor.create(document.getElementById("editor"), {
+  value: defaultPrograms.JAVA,
+  language: "java",
+  theme: "vs-dark",
+  automaticLayout: true
+});
+
+// Language switching
+document.getElementById("language").addEventListener("change", (event) => {
+  const selectedLanguage = event.target.value;
+
+  const monacoLanguage = {
+    JAVA: "java",
+    PYTHON: "python",
+    CPP: "cpp"
+  };
+
+  monaco.editor.setModelLanguage(
+    editor.getModel(),
+    monacoLanguage[selectedLanguage]
+  );
+
+  editor.setValue(defaultPrograms[selectedLanguage]);
+});
+
+// Run button
+document.getElementById("analyze-button").addEventListener("click", () => {
+  const resultBox = document.getElementById("result");
+  const aiAnalysis = document.getElementById("aiAnalysis");
+
+  // Execution result
+  resultBox.textContent = `
+Status: Error
+
+Compiler / Runtime Output:
+Error: variable 'x' is not defined
+
+Execution stopped.
+
+AI Explanation:
+The program contains an error that needs to be fixed.
+
+Hint:
+Check whether the variable is declared before it is used.
+`.trim();
+
+  // AI Debugger
+  if (aiAnalysis) {
+    aiAnalysis.innerHTML = `
+      <div class="ai-result">
+
+        <h3>🤖 AI Analysis</h3>
+
+        <div class="line-explanation">
+          <strong>1.</strong>
+          This line starts the program execution.
+        </div>
+
+        <div class="line-explanation">
+          <strong>2.</strong>
+          This line creates and processes the program data.
+        </div>
+
+        <div class="error-box">
+          <strong>3. 🔴 ERROR</strong>
+          <p>
+            <strong>Problem:</strong>
+            The variable is being used before it is declared.
+          </p>
+
+          <p>
+            <strong>Why:</strong>
+            The program cannot find the required variable.
+          </p>
+        </div>
+
+        <div class="hint-box">
+          <strong>💡 Hint</strong>
+          <p>
+            Check the variable declaration before using it.
+          </p>
+        </div>
+
+        <div class="fix-box">
+          <strong>✅ Suggested Fix</strong>
+          <p>
+            Declare the variable before using it.
+          </p>
+        </div>
+
+        <div class="line-explanation">
+          <strong>4.</strong>
+          After fixing the variable, run the program again.
+        </div>
+
+      </div>
+    `;
+  }
+});
+
+// Reset button
+document.getElementById("reset-button").addEventListener("click", () => {
+  const selectedLanguage = document.getElementById("language").value;
+
+  const monacoLanguage = {
+    JAVA: "java",
+    PYTHON: "python",
+    CPP: "cpp"
+  };
+
+  monaco.editor.setModelLanguage(
+    editor.getModel(),
+    monacoLanguage[selectedLanguage]
+  );
+
+  editor.setValue(defaultPrograms[selectedLanguage]);
+
+  document.getElementById("result").textContent =
+    "Your result will appear here.";
+
+  const aiAnalysis = document.getElementById("aiAnalysis");
+
+  if (aiAnalysis) {
+    aiAnalysis.innerHTML = `
+      <div class="ai-empty">
+        <div class="ai-icon">🤖</div>
+        <h3>AI Debugger Ready</h3>
+        <p>
+          Run your code to receive AI-powered
+          explanations, error analysis and hints.
+        </p>
+      </div>
+    `;
+  }
+});
