@@ -668,3 +668,80 @@ body {
   background: #252d3d;
   border-color: #6c63ff;
 }
+
+.problem-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.problem-card {
+  padding: 24px;
+  text-align: left;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.problem-card:hover {
+  border-color: var(--purple);
+  background: var(--card-light);
+}
+
+.problem-card h2 {
+  margin: 18px 0 8px;
+}
+
+.problem-card p,
+.selected-problem > p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.problem-card-link {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--purple-light);
+  font-weight: 700;
+}
+
+.difficulty-badge {
+  display: inline-block;
+  padding: 5px 10px;
+  color: var(--green);
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.selected-problem {
+  margin-bottom: 22px;
+  padding: 22px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.selected-problem[hidden] {
+  display: none;
+}
+
+.selected-problem h2 {
+  margin-bottom: 10px;
+}
+
+.selected-problem h3 {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.text-button {
+  padding: 0;
+  color: var(--purple-light);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}

@@ -19,6 +19,7 @@
 
     <div class="nav-links">
       <button class="nav-link active" data-page="dashboard">Dashboard</button>
+      <button class="nav-link" data-page="problems">Problems</button>
       <button class="nav-link" data-page="codeLab">Code Lab</button>
       <button class="nav-link" data-page="compare">Compare</button>
       <button class="nav-link" data-page="history">History</button>
@@ -147,6 +148,19 @@
 
   </section>
 
+  <section id="problems" class="page-section">
+    <div class="dashboard-container">
+      <div class="page-header">
+        <div>
+          <p class="small-label">PRACTICE</p>
+          <h1>Problems</h1>
+          <p>Choose a problem to open it in the code lab and start solving.</p>
+        </div>
+      </div>
+
+      <div id="problem-list" class="problem-grid"></div>
+    </div>
+  </section>
 
 
   <!-- ================= CODE LAB ================= -->
@@ -175,6 +189,21 @@
 
       </div>
 
+      <div id="selected-problem" class="selected-problem" hidden>
+        <button type="button" id="back-to-problems" class="text-button">
+          ← All problems
+        </button>
+
+        <h2 id="problem-title"></h2>
+        <span id="problem-difficulty" class="difficulty-badge"></span>
+        <p id="problem-description"></p>
+
+        <h3>Input</h3>
+        <p id="problem-input-description"></p>
+
+        <h3>Output</h3>
+        <p id="problem-output-description"></p>
+      </div>
 
       <div class="code-toolbar">
 
@@ -442,6 +471,8 @@
       });
 
     }
+
+    window.showPage = showPage;
 
 
     navLinks.forEach(link => {
