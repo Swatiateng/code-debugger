@@ -10,6 +10,8 @@
 
 <body>
 
+  <!-- ================= NAVBAR ================= -->
+
   <nav class="navbar">
 
     <div class="logo">
@@ -35,6 +37,7 @@
     <div class="dashboard-container">
 
       <div class="welcome-section">
+
         <div>
           <p class="small-label">AI-POWERED DEVELOPMENT WORKSPACE</p>
 
@@ -49,6 +52,7 @@
         <button class="primary-button" id="openCodeLab">
           Open Code Lab →
         </button>
+
       </div>
 
 
@@ -56,6 +60,7 @@
 
         <div class="stat-card">
           <span class="stat-icon">⌘</span>
+
           <div>
             <h3>0</h3>
             <p>Programs Analyzed</p>
@@ -64,6 +69,7 @@
 
         <div class="stat-card">
           <span class="stat-icon">✓</span>
+
           <div>
             <h3>0</h3>
             <p>Errors Detected</p>
@@ -72,6 +78,7 @@
 
         <div class="stat-card">
           <span class="stat-icon">↗</span>
+
           <div>
             <h3>0</h3>
             <p>Algorithms Compared</p>
@@ -131,15 +138,18 @@
         </div>
 
         <div class="activity-card">
+
           <div class="activity-icon">◷</div>
 
           <div>
             <h3>No recent activity</h3>
+
             <p>
               Your analyzed programs and comparisons
               will appear here.
             </p>
           </div>
+
         </div>
 
       </div>
@@ -148,18 +158,32 @@
 
   </section>
 
+
+  <!-- ================= PROBLEMS ================= -->
+
   <section id="problems" class="page-section">
+
     <div class="dashboard-container">
+
       <div class="page-header">
+
         <div>
           <p class="small-label">PRACTICE</p>
+
           <h1>Problems</h1>
-          <p>Choose a problem to open it in the code lab and start solving.</p>
+
+          <p>
+            Choose a problem to open it in the code lab
+            and start solving.
+          </p>
         </div>
+
       </div>
 
       <div id="problem-list" class="problem-grid"></div>
+
     </div>
+
   </section>
 
 
@@ -168,6 +192,8 @@
   <section id="codeLab" class="page-section">
 
     <div class="code-lab-container">
+
+      <!-- CODE LAB HEADER -->
 
       <div class="page-header">
 
@@ -189,13 +215,23 @@
 
       </div>
 
+
+      <!-- SELECTED PROBLEM -->
+
       <div id="selected-problem" class="selected-problem" hidden>
-        <button type="button" id="back-to-problems" class="text-button">
+
+        <button
+          type="button"
+          id="back-to-problems"
+          class="text-button"
+        >
           ← All problems
         </button>
 
         <h2 id="problem-title"></h2>
+
         <span id="problem-difficulty" class="difficulty-badge"></span>
+
         <p id="problem-description"></p>
 
         <h3>Input</h3>
@@ -203,7 +239,11 @@
 
         <h3>Output</h3>
         <p id="problem-output-description"></p>
+
       </div>
+
+
+      <!-- TOOLBAR -->
 
       <div class="code-toolbar">
 
@@ -225,45 +265,102 @@
 
 
         <div class="toolbar-actions">
-  <button type="button" id="analyze-button" class="primary-button">
-    ▶ Run
-  </button>
 
-  <button type="button" id="reset-button" class="secondary-button">
-    ↻ Reset
-  </button>
-</div>
+          <button
+            type="button"
+            id="analyze-button"
+            class="primary-button"
+          >
+            ▶ Run
+          </button>
+
+          <button
+            type="button"
+            id="reset-button"
+            class="secondary-button"
+          >
+            ↻ Reset
+          </button>
+
+          
+        </div>
 
       </div>
 
 
+      <!-- MAIN WORKSPACE -->
 
       <div class="workspace">
 
-        <!-- CODE EDITOR -->
 
-        <div class="editor-panel">
+        <!-- LEFT COLUMN -->
 
-          <div class="panel-header">
+        <div class="editor-column">
 
-            <div>
-              <span class="panel-dot"></span>
-              <strong>Code Editor</strong>
+
+          <!-- CODE EDITOR -->
+
+          <div class="editor-panel">
+
+            <div class="panel-header">
+
+              <div>
+                <span class="panel-dot"></span>
+                <strong>Code Editor</strong>
+              </div>
+
+              <span class="file-name">
+                Main.java
+              </span>
+
             </div>
 
-            <span class="file-name">
-              Main.java
-            </span>
+            <div id="editor"></div>
 
           </div>
 
-          <div id="editor"></div>
+
+          <!-- PROGRAM INPUT -->
+
+          <div class="input-panel">
+
+            <div class="panel-header">
+
+              <strong>Program Input</strong>
+
+              <span>Optional</span>
+
+            </div>
+
+            <textarea
+              id="program-input"
+              placeholder="Enter input for the program..."
+            ></textarea>
+
+          </div>
+
+
+          <!-- EXECUTION RESULT -->
+
+          <div class="output-panel">
+
+            <div class="panel-header">
+
+              <div>
+                <span class="panel-dot"></span>
+                <strong>Execution & Analysis Result</strong>
+              </div>
+
+            </div>
+
+            <pre id="result">Your result will appear here.</pre>
+
+          </div>
 
         </div>
 
 
-
-        <!-- AI DEBUGGER -->
+        <!-- RIGHT COLUMN: AI DEBUGGER -->
 
         <div class="ai-debugger-panel">
 
@@ -290,9 +387,8 @@
               <h3>AI Debugger Ready</h3>
 
               <p>
-                Click <strong>Analyze Code</strong> to
-                inspect your program and receive
-                line-by-line explanations.
+                Click <strong>Analyze Code</strong> to inspect
+                your program and receive line-by-line explanations.
               </p>
 
             </div>
@@ -303,50 +399,9 @@
 
       </div>
 
-
-
-     
-
-<!-- RESULT -->
-
-<div class="output-panel">
-
-  <div class="panel-header">
-
-    <div>
-      <span class="panel-dot"></span>
-      <strong>Execution & Analysis Result</strong>
     </div>
 
-  </div>
-
-  <pre id="result">Your result will appear here.</pre>
-
-</div>
-
-
-<!-- PROGRAM INPUT -->
-
-<div class="input-panel">
-
-  <div class="panel-header">
-    <strong>Program Input</strong>
-    <span>Optional</span>
-  </div>
-
-  <textarea
-    id="program-input"
-    placeholder="Enter input for the program..."
-  ></textarea>
-
-</div>
-
-</div>
-
-</section>
-
-  
-
+  </section>
 
 
   <!-- ================= COMPARE ================= -->
@@ -393,7 +448,6 @@
   </section>
 
 
-
   <!-- ================= HISTORY ================= -->
 
   <section id="history" class="page-section">
@@ -411,6 +465,7 @@
             View your previously analyzed programs
             and algorithm comparisons.
           </p>
+
         </div>
 
       </div>
@@ -438,7 +493,6 @@
   </section>
 
 
-
   <!-- ================= NAVIGATION SCRIPT ================= -->
 
   <script>
@@ -459,7 +513,6 @@
         selectedPage.classList.add("active-page");
       }
 
-
       navLinks.forEach(link => {
 
         link.classList.remove("active");
@@ -472,15 +525,14 @@
 
     }
 
+
     window.showPage = showPage;
 
 
     navLinks.forEach(link => {
 
       link.addEventListener("click", () => {
-
         showPage(link.dataset.page);
-
       });
 
     });
@@ -489,32 +541,30 @@
     document
       .getElementById("openCodeLab")
       .addEventListener("click", () => {
-
         showPage("codeLab");
-
       });
 
 
     document
       .getElementById("quickCodeLab")
       .addEventListener("click", () => {
-
         showPage("codeLab");
-
       });
 
 
     document
       .getElementById("quickCompare")
       .addEventListener("click", () => {
-
         showPage("compare");
-
       });
-      showPage("dashboard");
+
+
+    showPage("dashboard");
 
   </script>
 
+
+  <!-- MAIN JAVASCRIPT -->
 
   <script type="module" src="/src/main.js"></script>
 

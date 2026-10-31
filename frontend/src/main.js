@@ -1,5 +1,10 @@
+
 import "./style.css";
 import * as monaco from "monaco-editor";
+
+// ==================================================
+// DEFAULT PROGRAMS
+// ==================================================
 
 const defaultPrograms = {
   JAVA: `public class Main {
@@ -19,311 +24,580 @@ int main() {
 }`
 };
 
-// Create the Monaco code editor
-const editor = monaco.editor.create(
-  document.getElementById("editor"),
-  {
-    value: defaultPrograms.JAVA,
-    language: "java",
-    theme: "vs-dark",
-    automaticLayout: true
+// ==================================================
+// LANGUAGE CONFIGURATION
+// ==================================================
+
+const monacoLanguages = {
+  JAVA: "java",
+  PYTHON: "python",
+  CPP: "cpp"
+};
+
+// ==================================================
+// ELEMENT REFERENCES
+// ==================================================
+
+const languageSelect = document.getElementById("language");
+const resultBox = document.getElementById("result");
+const aiAnalysis = document.getElementById("aiAnalysis");
+const programInput = document.getElementById("program-input");
+
+const analyzeButton = document.getElementById("analyze-button");
+const resetButton = document.getElementById("reset-button");
+
+const editorElement = document.getElementById("editor");
+
+let selectedProblem = null;
+
+// ==================================================
+// MONACO EDITOR
+// ==================================================
+
+const editor = monaco.editor.create(editorElement, {
+  value: defaultPrograms.JAVA,
+  language: "java",
+  theme: "vs-dark",
+  automaticLayout: true,
+  minimap: {
+    enabled: false
+  },
+  fontSize: 14,
+  lineNumbers: "on",
+  scrollBeyondLastLine: false,
+  wordWrap: "on",
+  roundedSelection: true,
+  padding: {
+    top: 12
   }
-);
-
-// Language switching
-document
-  .getElementById("language")
-  .addEventListener("change", (event) => {
-
-    const selectedLanguage = event.target.value;
-
-    const monacoLanguage = {
-      JAVA: "java",
-      PYTHON: "python",
-      CPP: "cpp"
-    };
-
-    monaco.editor.setModelLanguage(
-      editor.getModel(),
-      monacoLanguage[selectedLanguage]
-    );
-
-    editor.setValue(
-      selectedProblem
-        ? selectedProblem.starter[selectedLanguage]
-        : defaultPrograms[selectedLanguage]
-    );
-  });
-
+});
 
 // ==================================================
-// ANALYZE BUTTON
+// LOAD CURRENT CODE
 // ==================================================
 
-document.getElementById("analyze-button")
-  .addEventListener("click", async () => {
+function loadCurrentCode() {
+  const language = languageSelect.value;
 
-    const resultBox =
-      document.getElementById("result");
+  const code = selectedProblem
+    ? selectedProblem.starter[language]
+    : defaultPrograms[language];
 
-    const aiAnalysis =
-      document.getElementById("aiAnalysis");
+  monaco.editor.setModelLanguage(
+    editor.getModel(),
+    monacoLanguages[language]
+  );
 
-    const selectedLanguage =
-      document.getElementById("language").value;
+  editor.setValue(code);
+}
 
-    const code =
-      editor.getValue();
+// ==================================================
+// AI DEBUGGER
+// ==================================================
+
+function resetAIAnalysis() {
+  if (!aiAnalysis) return;
+
+  aiAnalysis.textContent = "";
+
+  const emptyState = document.createElement("div");
+  emptyState.className = "ai-empty-state";
+
+  const icon = document.createElement("div");
+  icon.className = "ai-big-icon";
+  icon.textContent = "✦";
+
+  const heading = document.createElement("h3");
+  heading.textContent = "AI Debugger Ready";
+
+  const paragraph = document.createElement("p");
+  paragraph.textContent =
+    "Click Analyze Code to inspect your program and receive explanations.";
+
+  emptyState.append(icon, heading, paragraph);
+  aiAnalysis.appendChild(emptyState);
+}
+
+// ==================================================
+// DISPLAY AI RESULT
+// ==================================================
+
+function displayAIAnalysis(data) {
+  if (!aiAnalysis) return;
+
+  aiAnalysis.textContent = "";
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "ai-result";
+
+  const heading = document.createElement("h3");
+  heading.textContent = "✦ AI Analysis";
+
+  const output = document.createElement("pre");
+  output.textContent = JSON.stringify(data, null, 2);
+
+  wrapper.append(heading, output);
+  aiAnalysis.appendChild(wrapper);
+}
+
+// ==================================================
+// DISPLAY ERROR
+// ==================================================
+
+function displayError(message) {
+  if (!aiAnalysis) return;
+
+  aiAnalysis.textContent = "";
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "error-box";
+
+  const heading = document.createElement("strong");
+  heading.textContent = "Error";
+
+  const paragraph = document.createElement("p");
+  paragraph.textContent = message;
+
+  wrapper.append(heading, paragraph);
+  aiAnalysis.appendChild(wrapper);
+}
+
+// ==================================================
+// LANGUAGE SWITCHING
+// ==================================================
+
+languageSelect.addEventListener("change", () => {
+  loadCurrentCode();
+});
+
+// ==================================================
+// RUN / ANALYZE BUTTON
+// ==================================================
+
+analyzeButton.addEventListener("click", async () => {
+  const language = languageSelect.value;
+  const code = editor.getValue();
+  const input = programInput?.value ?? "";
+
+  resultBox.textContent = "Analyzing...";
+
+  resetAIAnalysis();
+
+  analyzeButton.disabled = true;
+  analyzeButton.textContent = "Analyzing...";
+
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        language,
+        code,
+        input
+      })
+    });
+
+    const contentType =
+      response.headers.get("content-type") || "";
+
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : {
+          error: await response.text()
+        };
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || `Analysis failed (HTTP ${response.status})`
+      );
+    }
 
     resultBox.textContent =
-      "Analyzing...";
+      data.compilerOutput ||
+      data.output ||
+      "Program finished without producing output.";
 
-    try {
+    displayAIAnalysis(data);
 
-      const programInput =
-        document.getElementById("program-input")?.value ?? "";
+  } catch (error) {
+    console.error("Analysis error:", error);
 
-      const response = await fetch(
-        "/api/analyze",
-        {
-          method: "POST",
+    resultBox.textContent = `Error: ${error.message}`;
 
-          headers: {
-            "Content-Type": "application/json"
-          },
+    displayError(error.message);
 
-          body: JSON.stringify({
-            language: selectedLanguage,
-            code: code,
-            input: programInput
-          })
-        }
-      );
-
-      const contentType = response.headers.get("content-type") || "";
-      const data = contentType.includes("application/json")
-        ? await response.json()
-        : { error: await response.text() };
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || `Analysis failed (HTTP ${response.status})`
-        );
-      }
-
-      // Show the program output in the result panel.
-      resultBox.textContent = data.compilerOutput ||
-        "Program finished without producing output.";
-
-
-      // Show AI analysis
-      if (aiAnalysis) {
-
-        aiAnalysis.innerHTML = `
-          <div class="ai-result">
-
-            <h3>🤖 AI Analysis</h3>
-
-            <pre>${JSON.stringify(
-              data,
-              null,
-              2
-            )}</pre>
-
-          </div>
-        `;
-      }
-
-    } catch (error) {
-
-      console.error(error);
-
-      resultBox.textContent =
-        `Error: ${error.message}`;
-
-      if (aiAnalysis) {
-
-        aiAnalysis.innerHTML = `
-          <div class="error-box">
-
-            <strong>🔴 Error</strong>
-
-            <p>
-              ${error.message}
-            </p>
-
-          </div>
-        `;
-      }
-    }
-  });
-
+  } finally {
+    analyzeButton.disabled = false;
+    analyzeButton.textContent = "▶ Run";
+  }
+});
 
 // ==================================================
 // RESET BUTTON
 // ==================================================
 
-document
-  .getElementById("reset-button")
-  .addEventListener("click", () => {
+resetButton.addEventListener("click", () => {
+  loadCurrentCode();
 
-    const selectedLanguage =
-      document.getElementById("language").value;
+  programInput.value = "";
 
-    const monacoLanguage = {
-      JAVA: "java",
-      PYTHON: "python",
-      CPP: "cpp"
-    };
+  resultBox.textContent =
+    "Your result will appear here.";
 
-    monaco.editor.setModelLanguage(
-      editor.getModel(),
-      monacoLanguage[selectedLanguage]
-    );
+  resetAIAnalysis();
+});
 
-    editor.setValue(
-      defaultPrograms[selectedLanguage]
-    );
+// ==================================================
+// PROBLEM DATA
+// ==================================================
 
-    document.getElementById("result").textContent =
-      "Your result will appear here.";
+const problems = [
+  {
+    id: "sum-two-numbers",
+    title: "Sum of Two Numbers",
+    difficulty: "Easy",
+    description: "Read two integers and print their sum.",
+    input: "Two integers separated by a space.",
+    output: "Print their sum.",
 
-    const aiAnalysis =
-      document.getElementById("aiAnalysis");
+    starter: {
+      JAVA: `import java.util.Scanner;
 
-    if (aiAnalysis) {
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
 
-      aiAnalysis.innerHTML = `
-        <div class="ai-empty">
+        int a = scanner.nextInt();
+        int b = scanner.nextInt();
 
-          <div class="ai-icon">🤖</div>
-
-          <h3>AI Debugger Ready</h3>
-
-          <p>
-            Run your code to receive AI-powered
-            explanations, error analysis and hints.
-          </p>
-
-        </div>
-      `;
+        // TODO: print the sum of a and b
     }
-  });
+}`,
 
+      PYTHON: `a, b = map(int, input().split())
 
-  const problems = [
-    {
-      id: "sum-two-numbers",
-      title: "Sum of Two Numbers",
-      difficulty: "Easy",
-      description: "Read two integers and print their sum.",
-      input: "Two integers separated by a space.",
-      output: "Print their sum.",
-      starter: {
-        JAVA: `import java.util.Scanner;
+# TODO: print the sum of a and b
+`,
 
-  public class Main {
-      public static void main(String[] args) {
-          Scanner scanner = new Scanner(System.in);
-          int a = scanner.nextInt();
-          int b = scanner.nextInt();
+      CPP: `#include <iostream>
+using namespace std;
 
-          // TODO: print the sum of a and b
-      }
-  }`,
-        PYTHON: `a, b = map(int, input().split())
+int main() {
+    int a, b;
+    cin >> a >> b;
 
-  # TODO: print the sum of a and b
-  `,
-        CPP: `#include <iostream>
-  using namespace std;
+    // TODO: print the sum of a and b
 
-  int main() {
-      int a, b;
-      cin >> a >> b;
-
-      // TODO: print the sum of a and b
-      return 0;
-  }`
-      }
-    },
-    {
-      id: "reverse-string",
-      title: "Reverse a String",
-      difficulty: "Easy",
-      description: "Read a line of text and print it in reverse.",
-      input: "One line of text.",
-      output: "Print the text in reverse.",
-      starter: {
-        JAVA: `import java.util.Scanner;
-
-  public class Main {
-      public static void main(String[] args) {
-          Scanner scanner = new Scanner(System.in);
-          String text = scanner.nextLine();
-
-          // TODO: print text in reverse
-      }
-  }`,
-        PYTHON: `text = input()
-
-  # TODO: print text in reverse
-  `,
-        CPP: `#include <iostream>
-  #include <string>
-  using namespace std;
-
-  int main() {
-      string text;
-      getline(cin, text);
-
-      // TODO: reverse text and print it
-      return 0;
-  }`
-      }
+    return 0;
+}`
     }
-  ];
+  },
 
-  const problemList = document.getElementById("problem-list");
+  {
+    id: "reverse-string",
+    title: "Reverse a String",
+    difficulty: "Easy",
+    description: "Read a line of text and print it in reverse.",
+    input: "One line of text.",
+    output: "Print the text in reverse.",
 
+    starter: {
+      JAVA: `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        String text = scanner.nextLine();
+
+        // TODO: print text in reverse
+    }
+}`,
+
+      PYTHON: `text = input()
+
+# TODO: print text in reverse
+`,
+
+      CPP: `#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    string text;
+    getline(cin, text);
+
+    // TODO: reverse text and print it
+
+    return 0;
+}`
+    }
+  }
+];
+
+// ==================================================
+// DISPLAY PROBLEM CARDS
+// ==================================================
+
+const problemList = document.getElementById("problem-list");
+
+if (problemList) {
   problemList.innerHTML = problems.map(problem => `
-    <button class="problem-card" type="button" data-problem-id="${problem.id}">
-      <span class="difficulty-badge">${problem.difficulty}</span>
+    <button
+      class="problem-card"
+      type="button"
+      data-problem-id="${problem.id}"
+    >
+      <span class="difficulty-badge">
+        ${problem.difficulty}
+      </span>
+
       <h2>${problem.title}</h2>
+
       <p>${problem.description}</p>
-      <span class="problem-card-link">Solve problem →</span>
+
+      <span class="problem-card-link">
+        Solve problem →
+      </span>
     </button>
   `).join("");
+}
 
-  let selectedProblem = null;
+// ==================================================
+// FOCUS MODE
+// ==================================================
+
+let isFocusModeActive = false;
+let notificationTimer = null;
+
+// ==================================================
+// SHOW NOTIFICATION
+// ==================================================
+
+function showFocusNotification(message) {
+  let notification = document.getElementById(
+    "focus-notification"
+  );
+
+  if (!notification) {
+    notification = document.createElement("div");
+
+    notification.id = "focus-notification";
+    notification.className = "focus-notification";
+
+    document.body.appendChild(notification);
+  }
+
+  notification.textContent = message;
+
+  notification.classList.add("show");
+
+  if (notificationTimer) {
+    clearTimeout(notificationTimer);
+  }
+
+  notificationTimer = setTimeout(() => {
+    notification.classList.remove("show");
+  }, 4000);
+}
+
+// ==================================================
+// ENTER FOCUS MODE
+// ==================================================
+
+async function enterFocusMode() {
+
+  if (document.fullscreenElement) {
+    return;
+  }
+
+  try {
+
+    isFocusModeActive = true;
+
+    await document.documentElement.requestFullscreen();
+
+    console.log("Focus Mode activated.");
+
+  } catch (error) {
+
+    console.error("Fullscreen error:", error);
+
+    isFocusModeActive = false;
+
+    showFocusNotification(
+      "Fullscreen could not start. Please try again."
+    );
+  }
+}
+
+// ==================================================
+// DETECT FULLSCREEN EXIT
+// PRESSING ESC RETURNS TO DASHBOARD
+// ==================================================
+
+document.addEventListener("fullscreenchange", () => {
+
+  const isFullscreen = Boolean(
+    document.fullscreenElement
+  );
+
+  // Fullscreen entered.
+
+  if (isFullscreen) {
+    isFocusModeActive = true;
+    return;
+  }
+
+  // Fullscreen exited using ESC or browser controls.
+
+  if (isFocusModeActive) {
+
+    isFocusModeActive = false;
+
+    // Navigate back to Dashboard.
+    if (typeof window.showPage === "function") {
+      window.showPage("dashboard");
+    }
+
+    // Show exit notification.
+    showFocusNotification(
+      "You exited Focus Mode."
+    );
+
+    console.log("Focus Mode exited.");
+
+  }
+
+});
+
+// ==================================================
+// CODE LAB NAVIGATION
+// ==================================================
+
+// Navbar Code Lab
+
+document.querySelectorAll(".nav-link[data-page]").forEach(link => {
+
+  link.addEventListener("click", () => {
+
+    if (link.dataset.page === "codeLab") {
+      enterFocusMode();
+    }
+
+  });
+
+});
+
+// Dashboard Open Code Lab button
+
+const openCodeLabButton =
+  document.getElementById("openCodeLab");
+
+if (openCodeLabButton) {
+  openCodeLabButton.addEventListener("click", () => {
+    enterFocusMode();
+  });
+}
+
+// Dashboard Quick Code Lab card
+
+const quickCodeLabButton =
+  document.getElementById("quickCodeLab");
+
+if (quickCodeLabButton) {
+  quickCodeLabButton.addEventListener("click", () => {
+    enterFocusMode();
+  });
+}
+
+// ==================================================
+// SELECT A PROBLEM
+// ==================================================
+
+if (problemList) {
 
   problemList.addEventListener("click", event => {
-    const card = event.target.closest("[data-problem-id]");
+
+    const card = event.target.closest(
+      "[data-problem-id]"
+    );
+
     if (!card) return;
 
     selectedProblem = problems.find(
       problem => problem.id === card.dataset.problemId
     );
 
-    document.getElementById("problem-title").textContent = selectedProblem.title;
+    if (!selectedProblem) return;
+
+    document.getElementById("problem-title").textContent =
+      selectedProblem.title;
+
     document.getElementById("problem-difficulty").textContent =
       selectedProblem.difficulty;
+
     document.getElementById("problem-description").textContent =
       selectedProblem.description;
+
     document.getElementById("problem-input-description").textContent =
       selectedProblem.input;
+
     document.getElementById("problem-output-description").textContent =
       selectedProblem.output;
+
     document.getElementById("selected-problem").hidden = false;
 
-    // Load the selected problem's starter code for the current language.
-    const language = document.getElementById("language").value;
-    editor.setValue(selectedProblem.starter[language]);
+    loadCurrentCode();
 
-    window.showPage("codeLab");
+    programInput.value = "";
+
+    resultBox.textContent =
+      "Your result will appear here.";
+
+    resetAIAnalysis();
+
+    // Navigate to Code Lab.
+
+    if (typeof window.showPage === "function") {
+      window.showPage("codeLab");
+    }
+
+    // Enter fullscreen.
+
+    enterFocusMode();
+
   });
 
-  document.getElementById("back-to-problems").addEventListener("click", () => {
-    window.showPage("problems");
+}
+
+// ==================================================
+// BACK TO PROBLEMS
+// ==================================================
+
+const backToProblemsButton =
+  document.getElementById("back-to-problems");
+
+if (backToProblemsButton) {
+
+  backToProblemsButton.addEventListener("click", () => {
+
+    if (typeof window.showPage === "function") {
+      window.showPage("problems");
+    }
+
   });
 
+}
+
+// ==================================================
+// INITIALIZE
+// ==================================================
+
+resetAIAnalysis();
+
+console.log("CodeMind AI initialized successfully.");
