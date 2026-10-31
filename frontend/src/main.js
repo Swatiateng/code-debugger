@@ -692,6 +692,8 @@ function startCodeLabTimer() {
   // Avoid starting a second timer
   if (codeLabTimerInterval) return;
 
+  // Reset the timer for a new Focus Mode session
+  codeLabElapsedSeconds = 0;
   codeLabTimerStartTime = Date.now();
 
   codeLabTimer.style.display = "flex";
