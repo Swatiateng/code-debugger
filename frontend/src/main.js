@@ -601,3 +601,136 @@ if (backToProblemsButton) {
 resetAIAnalysis();
 
 console.log("CodeMind AI initialized successfully.");
+
+
+/* ==================================================
+   CODE LAB FULLSCREEN SESSION TIMER
+   ================================================== */
+
+let codeLabTimerInterval = null;
+let codeLabTimerStartTime = null;
+let codeLabElapsedSeconds = 0;
+
+const codeLabTimer = document.createElement("div");
+
+codeLabTimer.id = "code-lab-session-timer";
+
+codeLabTimer.style.cssText = `
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 2147483647;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: #111827;
+  border: 1px solid #818cf8;
+  border-radius: 12px;
+  color: white;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 5px 24px rgba(0, 0, 0, 0.4);
+`;
+
+codeLabTimer.innerHTML = `
+  <span style="color: #a5b4fc;">
+    ⏱ CODE LAB TIME
+  </span>
+
+  <span
+    id="code-lab-timer-display"
+    style="
+      color: white;
+      font-size: 18px;
+      font-variant-numeric: tabular-nums;
+    "
+  >
+    00:00:00
+  </span>
+`;
+
+document.body.appendChild(codeLabTimer);
+
+// Format elapsed seconds as HH:MM:SS
+function formatCodeLabTime(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [
+    String(hours).padStart(2, "0"),
+    String(minutes).padStart(2, "0"),
+    String(seconds).padStart(2, "0")
+  ].join(":");
+}
+
+// Update the timer display
+function updateCodeLabTimer() {
+  if (!codeLabTimerStartTime) return;
+
+  const currentSessionSeconds = Math.floor(
+    (Date.now() - codeLabTimerStartTime) / 1000
+  );
+
+  const totalSeconds =
+    codeLabElapsedSeconds + currentSessionSeconds;
+
+  const timerDisplay = document.getElementById(
+    "code-lab-timer-display"
+  );
+
+  if (timerDisplay) {
+    timerDisplay.textContent =
+      formatCodeLabTime(totalSeconds);
+  }
+}
+
+// Start timer when entering fullscreen
+function startCodeLabTimer() {
+  // Avoid starting a second timer
+  if (codeLabTimerInterval) return;
+
+  codeLabTimerStartTime = Date.now();
+
+  codeLabTimer.style.display = "flex";
+
+  updateCodeLabTimer();
+
+  codeLabTimerInterval = setInterval(() => {
+    updateCodeLabTimer();
+  }, 1000);
+}
+
+// Stop timer when leaving fullscreen
+function stopCodeLabTimer() {
+  if (codeLabTimerInterval) {
+    clearInterval(codeLabTimerInterval);
+    codeLabTimerInterval = null;
+  }
+
+  if (codeLabTimerStartTime) {
+    codeLabElapsedSeconds += Math.floor(
+      (Date.now() - codeLabTimerStartTime) / 1000
+    );
+
+    codeLabTimerStartTime = null;
+  }
+
+  codeLabTimer.style.display = "none";
+
+  console.log(
+    "Total Code Lab time:",
+    formatCodeLabTime(codeLabElapsedSeconds)
+  );
+}
+
+// Detect fullscreen entry and exit
+document.addEventListener("fullscreenchange", () => {
+  if (document.fullscreenElement) {
+    startCodeLabTimer();
+  } else {
+    stopCodeLabTimer();
+  }
+});
