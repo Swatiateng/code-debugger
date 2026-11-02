@@ -80,6 +80,7 @@ public class AnalysisHistoryService {
             AnalyzeCodeRequest request = new AnalyzeCodeRequest(
                     entity.getLanguage(),
                     entity.getSourceCode(),
+                    null,
                     entity.getStandardInput()
             );
 
@@ -89,7 +90,8 @@ public class AnalysisHistoryService {
                     diagnostics,
                     entity.getCompilerOutput(),
                     entity.getAiExplanation(),
-                    entity.getHint()
+                    entity.getHint(),
+                    List.of()
             );
 
             return new AnalysisHistoryItem(request, response);

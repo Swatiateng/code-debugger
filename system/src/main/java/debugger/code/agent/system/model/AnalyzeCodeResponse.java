@@ -9,7 +9,8 @@ public record AnalyzeCodeResponse(
         List<Diagnostic> diagnostics,
         String compilerOutput,
         String aiExplanation,
-        String hint
+        String hint,
+        List<TestCaseResult> testCases
 ) {
 }
 
