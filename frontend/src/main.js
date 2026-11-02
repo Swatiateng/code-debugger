@@ -133,11 +133,48 @@ function displayAIAnalysis(data) {
   const heading = document.createElement("h3");
   heading.textContent = "✦ AI Analysis";
 
-  const output = document.createElement("pre");
-  output.textContent = JSON.stringify(data, null, 2);
+  wrapper.appendChild(heading);
 
-  wrapper.append(heading, output);
+  if (data.diagnostics?.length) {
+    const diagnostics = document.createElement("pre");
+    diagnostics.textContent = JSON.stringify(data.diagnostics, null, 2);
+    wrapper.appendChild(diagnostics);
+  }
+
+  const explanation = document.createElement("p");
+  explanation.textContent = data.aiExplanation;
+  const hint = document.createElement("p");
+  hint.textContent = `Hint: ${data.hint}`;
+  wrapper.append(explanation, hint);
   aiAnalysis.appendChild(wrapper);
+}
+
+function displayTestCases(testCases = []) {
+  const panel = document.getElementById("test-results-panel");
+  const results = document.getElementById("test-results");
+  const summary = document.getElementById("test-results-summary");
+  if (!panel || !results || !summary) return;
+
+  results.textContent = "";
+  panel.hidden = !selectedProblem || testCases.length === 0;
+  if (!testCases.length) return;
+
+  const passedCount = testCases.filter(testCase => testCase.passed).length;
+  summary.textContent = `${passedCount} of ${testCases.length} passed`;
+  testCases.forEach(testCase => {
+    const card = document.createElement("section");
+    card.className = `test-case-result ${testCase.passed ? "passed" : "failed"}`;
+    const title = document.createElement("h4");
+    const status = document.createElement("span");
+    status.className = `test-case-status ${testCase.passed ? "passed" : "failed"}`;
+    status.setAttribute("aria-label", testCase.passed ? "Passed" : "Failed");
+    status.textContent = testCase.passed ? "✓" : "✕";
+    title.append(status, document.createTextNode(`Case ${testCase.caseNumber}: ${testCase.passed ? "Passed" : "Failed"}`));
+    const details = document.createElement("pre");
+    details.textContent = `Input:\n${testCase.input}\nExpected output:\n${testCase.expectedOutput}\nYour output:\n${testCase.actualOutput}\n${testCase.message}`;
+    card.append(title, details);
+    results.appendChild(card);
+  });
 }
 
 // ==================================================
@@ -182,6 +219,7 @@ analyzeButton.addEventListener("click", async () => {
   resultBox.textContent = "Analyzing...";
 
   resetAIAnalysis();
+  displayTestCases([]);
 
   analyzeButton.disabled = true;
   analyzeButton.textContent = "Analyzing...";
@@ -197,6 +235,7 @@ analyzeButton.addEventListener("click", async () => {
       body: JSON.stringify({
         language,
         code,
+        problemId: selectedProblem?.id ?? null,
         input
       })
     });
@@ -221,6 +260,7 @@ analyzeButton.addEventListener("click", async () => {
       data.output ||
       "Program finished without producing output.";
 
+    displayTestCases(data.testCases);
     displayAIAnalysis(data);
 
   } catch (error) {
@@ -244,6 +284,7 @@ resetButton.addEventListener("click", () => {
   loadCurrentCode();
 
   programInput.value = "";
+  displayTestCases([]);
 
   resultBox.textContent =
     "Your result will appear here.";
@@ -263,6 +304,8 @@ const problems = [
     description: "Read two integers and print their sum.",
     input: "Two integers separated by a space.",
     output: "Print their sum.",
+    exampleInput: "2 3",
+    exampleOutput: "5",
 
     starter: {
       JAVA: `import java.util.Scanner;
@@ -304,6 +347,8 @@ int main() {
     description: "Read a line of text and print it in reverse.",
     input: "One line of text.",
     output: "Print the text in reverse.",
+    exampleInput: "hello",
+    exampleOutput: "olleh",
 
     starter: {
       JAVA: `import java.util.Scanner;
@@ -549,12 +594,17 @@ if (problemList) {
 
     document.getElementById("problem-output-description").textContent =
       selectedProblem.output;
+    document.getElementById("problem-example-input").textContent =
+      selectedProblem.exampleInput;
+    document.getElementById("problem-example-output").textContent =
+      selectedProblem.exampleOutput;
 
     document.getElementById("selected-problem").hidden = false;
 
     loadCurrentCode();
 
     programInput.value = "";
+    displayTestCases([]);
 
     resultBox.textContent =
       "Your result will appear here.";
