@@ -529,14 +529,23 @@
     window.showPage = showPage;
 
 
-    navLinks.forEach(link => {
+   navLinks.forEach(link => {
 
-      link.addEventListener("click", () => {
-        showPage(link.dataset.page);
-      });
+  link.addEventListener("click", () => {
 
-    });
+    // Lock Dashboard, Problems, and History during Focus Mode
+    if (
+      document.fullscreenElement &&
+      ["dashboard", "problems", "history"].includes(link.dataset.page)
+    ) {
+      return;
+    }
 
+    showPage(link.dataset.page);
+
+  });
+
+});
 
     document
       .getElementById("openCodeLab")
