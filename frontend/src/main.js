@@ -736,3 +736,50 @@ document.addEventListener("fullscreenchange", () => {
     stopCodeLabTimer();
   }
 });
+// ================= ALGORITHM COMPARISON =================
+
+const compareButton = document.getElementById("compare-button");
+
+if (compareButton) {
+  compareButton.addEventListener("click", async () => {
+
+    const algorithm1 = document.getElementById("algorithm1").value;
+    const code1 = document.getElementById("code1").value;
+
+    const algorithm2 = document.getElementById("algorithm2").value;
+    const code2 = document.getElementById("code2").value;
+
+    const language = document.getElementById("compare-language").value;
+
+    const resultDiv = document.getElementById("comparison-result");
+
+    resultDiv.textContent = "Comparing algorithms...";
+
+    try {
+      const response = await fetch(
+        "http://localhost:8080/api/compare/algorithms",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            algorithm1,
+            code1,
+            algorithm2,
+            code2,
+            language
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      resultDiv.textContent = JSON.stringify(data, null, 2);
+
+    } catch (error) {
+      resultDiv.textContent = "Error connecting to backend: " + error.message;
+    }
+
+  });
+}

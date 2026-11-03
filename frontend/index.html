@@ -426,22 +426,38 @@
       </div>
 
 
-      <div class="coming-card">
+      <div class="comparison-container">
 
-        <div class="coming-icon">⇄</div>
+  <h2>Compare Algorithms</h2>
 
-        <h2>Algorithm Comparison</h2>
+  <label>First Algorithm</label>
+  <input id="algorithm1" value="Bubble Sort">
 
-        <p>
-          This module will allow you to compare two
-          algorithms and visualize their performance.
-        </p>
+  <label>First Code</label>
+  <textarea id="code1" placeholder="Enter first Python code"></textarea>
 
-        <span class="module-status">
-          Coming with backend integration
-        </span>
+  <label>Second Algorithm</label>
+  <input id="algorithm2" value="Quick Sort">
 
-      </div>
+  <label>Second Code</label>
+  <textarea id="code2" placeholder="Enter second Python code"></textarea>
+
+  <label>Language</label>
+  <select id="compare-language">
+    <option value="PYTHON">Python</option>
+    <option value="JAVA">Java</option>
+    <option value="CPP">C++</option>
+  </select>
+
+  <button id="compare-button" class="primary-button">
+    Compare Algorithms
+  </button>
+
+  <div id="comparison-result">
+    Comparison results will appear here.
+  </div>
+
+</div>
 
     </div>
 

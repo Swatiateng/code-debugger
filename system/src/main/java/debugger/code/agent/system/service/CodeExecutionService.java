@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -35,11 +34,8 @@ public class CodeExecutionService {
         String containerName = "code-run-" +
                 UUID.randomUUID().toString().replace("-", "");
 
-        List<String> dockerCommand = new ArrayList<>();
-
-        dockerCommand.addAll(List.of(
-                "docker", "run",
-                "--rm",
+        List<String> dockerCommand = new ArrayList<>(List.of(
+                "docker", "run", "--rm",
                 "--name", containerName,
                 "--network", "none",
                 "--memory", memory,
@@ -52,97 +48,107 @@ public class CodeExecutionService {
                 "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
                 "--user", "10001:10001",
                 "--workdir", "/workspace",
-                "--mount",
-                "type=bind,source=" + directory.toAbsolutePath() +
-                        ",target=/workspace",
-                "-i",
-                dockerImage
+                "--mount", "type=bind,source=" +
+                        directory.toAbsolutePath() + ",target=/workspace",
+                "-i", dockerImage
         ));
-
-        // Translate host-specific paths and executable names.
-        List<String> containerCommand = new ArrayList<>();
 
         for (String argument : command) {
             if (argument.equals(directory.toString()) ||
                     argument.equals(directory.toAbsolutePath().toString())) {
-                containerCommand.add("/workspace");
+                dockerCommand.add("/workspace");
             } else if (argument.equals("python")) {
-                containerCommand.add("python3");
+                dockerCommand.add("python3");
             } else if (argument.equals("program.exe")) {
-                containerCommand.add("./program");
+                dockerCommand.add("./program");
             } else {
-                containerCommand.add(argument);
+                dockerCommand.add(argument);
             }
         }
-
-        dockerCommand.addAll(containerCommand);
 
         Process process = null;
 
         try {
             process = new ProcessBuilder(dockerCommand).start();
 
+            Process runningProcess = process;
+
+            Thread outputReader = new Thread(() -> {
+                try {
+                    runningProcess.getInputStream().transferTo(
+                            java.io.OutputStream.nullOutputStream());
+                } catch (IOException ignored) {
+                }
+            });
+
+            java.io.ByteArrayOutputStream stdout =
+                    new java.io.ByteArrayOutputStream();
+            java.io.ByteArrayOutputStream stderr =
+                    new java.io.ByteArrayOutputStream();
+
+            Thread stdoutReader = new Thread(() -> {
+                try {
+                    runningProcess.getInputStream().transferTo(stdout);
+                } catch (IOException ignored) {
+                }
+            });
+
+            Thread stderrReader = new Thread(() -> {
+                try {
+                    runningProcess.getErrorStream().transferTo(stderr);
+                } catch (IOException ignored) {
+                }
+            });
+
+            stdoutReader.start();
+            stderrReader.start();
+
             if (input != null && !input.isEmpty()) {
                 process.getOutputStream().write(
                         input.getBytes(StandardCharsets.UTF_8));
             }
-
             process.getOutputStream().close();
 
             boolean finished = process.waitFor(
-                    Duration.ofSeconds(timeoutSeconds).toMillis(),
-                    TimeUnit.MILLISECONDS);
+                    timeoutSeconds, TimeUnit.SECONDS);
 
             if (!finished) {
                 process.destroyForcibly();
                 process.waitFor();
 
-                // Remove the container if execution exceeded the timeout.
                 new ProcessBuilder(
                         "docker", "rm", "-f", containerName
                 ).start().waitFor(3, TimeUnit.SECONDS);
             }
 
-            String stdout = new String(
-                    process.getInputStream().readAllBytes(),
-                    StandardCharsets.UTF_8);
-
-            String stderr = new String(
-                    process.getErrorStream().readAllBytes(),
-                    StandardCharsets.UTF_8);
+            stdoutReader.join(2000);
+            stderrReader.join(2000);
 
             return new ProcessResult(
                     finished,
                     finished ? process.exitValue() : -1,
-                    stdout,
-                    finished ? stderr : "Execution timed out.",
+                    stdout.toString(StandardCharsets.UTF_8),
+                    finished ? stderr.toString(StandardCharsets.UTF_8)
+                            : "Execution timed out.",
                     TimeUnit.NANOSECONDS.toMillis(
                             System.nanoTime() - started)
             );
 
         } catch (IOException e) {
-            if (process != null) {
-                process.destroyForcibly();
-            }
+            if (process != null) process.destroyForcibly();
 
-            return new ProcessResult(
-                    true, -1, "", e.getMessage(),
+            return new ProcessResult(true, -1, "", e.getMessage(),
                     TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - started)
-            );
+                            System.nanoTime() - started));
 
         } catch (InterruptedException e) {
-            if (process != null) {
-                process.destroyForcibly();
-            }
-
+            if (process != null) process.destroyForcibly();
             Thread.currentThread().interrupt();
 
-            return new ProcessResult(
-                    false, -1, "", "Execution interrupted",
+            return new ProcessResult(false, -1, "",
+                    "Execution interrupted",
                     TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - started)
-            );
+                            System.nanoTime() - started));
         }
     }
 
