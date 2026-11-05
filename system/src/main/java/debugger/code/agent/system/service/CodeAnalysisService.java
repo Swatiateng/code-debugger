@@ -69,7 +69,8 @@ public class CodeAnalysisService {
         List<TestCaseResult> failedCases = caseResults.stream().filter(testCase -> !testCase.passed()).toList();
         AiExplanation explanation = aiExplanationService.explain(request.language(), request.code(), output,
                 request.problemStatement(), failedCases, request.studentReasoning(),
-                request.previousAiResponse(), request.previousHintLevel());
+                request.previousAiResponse(), request.previousHintLevel(),
+                request.studentReasoningHistory());
         String status = result.timedOut() ? "TIMEOUT"
                 : !result.diagnostics().isEmpty() ? "ERROR"
                 : wrongAnswer ? "WRONG_ANSWER" : "SUCCESS";
