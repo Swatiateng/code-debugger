@@ -137,19 +137,20 @@
           <h2>Your coding activity</h2>
         </div>
 
-        <div class="activity-card">
+        <div id="recent-activity-list" class="recent-activity-list" aria-live="polite">
+          <div class="activity-card">
 
-          <div class="activity-icon">◷</div>
+            <div class="activity-icon">◷</div>
 
-          <div>
-            <h3>No recent activity</h3>
+            <div>
+              <h3>No recent activity</h3>
 
-            <p>
-              Your analyzed programs and comparisons
-              will appear here.
-            </p>
+              <p>
+                Problems you open to solve will appear here.
+              </p>
+            </div>
+
           </div>
-
         </div>
 
       </div>
@@ -410,6 +411,17 @@
             </div>
 
           </div>
+
+          <form id="ai-response-form" class="ai-response-form">
+            <textarea
+              id="ai-response-input"
+              rows="2"
+              placeholder="Share your thinking with the tutor..."
+              aria-label="Your reasoning"
+              disabled
+            ></textarea>
+            <button id="ai-response-submit" type="submit" disabled>Send</button>
+          </form>
 
         </div>
 
