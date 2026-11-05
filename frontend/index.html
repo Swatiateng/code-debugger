@@ -432,27 +432,87 @@
   </section>
 
 
-  <!-- ================= COMPARE ================= -->
+    <!-- ================= COMPARE ================= -->
 
-  <section id="compare" class="page-section">
+<section id="compare" class="page-section">
 
-    <div class="dashboard-container">
+  <div class="dashboard-container">
 
-      <div class="page-header">
+    <div class="page-header">
+      <div>
+        <p class="small-label">ALGORITHM ANALYSIS</p>
+        <h1>Algorithm Comparison</h1>
+        <p>Compare performance, time complexity and space complexity.</p>
+      </div>
+    </div>
 
+    <div class="compare-panel">
+
+      <div class="compare-selection">
         <div>
-          <p class="small-label">ALGORITHM ANALYSIS</p>
+          <label for="compare-problem">Choose a problem to compare</label>
+          <select id="compare-problem">
+            <option value="reverse">Reverse a String</option>
+          </select>
+        </div>
 
-          <h1>Algorithm Comparison</h1>
+        <span class="compare-status">✓ Sum of Two Numbers Passed</span>
+      </div>
 
-          <p>
-            Compare algorithms based on performance,
-            complexity and execution time.
-          </p>
+      <div class="compare-heading">
+        <h2>Performance Comparison</h2>
+        <p>Sum of Two Numbers vs Reverse a String</p>
+      </div>
+
+      <div class="compare-graph">
+
+        <div class="graph-row">
+          <span class="graph-label">Sum of Two Numbers</span>
+          <div class="graph-track">
+            <div class="graph-bar constant-bar"></div>
+          </div>
+          <strong>O(1)</strong>
+        </div>
+
+        <div class="graph-row">
+          <span class="graph-label">Reverse a String</span>
+          <div class="graph-track">
+            <div class="graph-bar linear-bar"></div>
+          </div>
+          <strong>O(n)</strong>
         </div>
 
       </div>
 
+      <p class="graph-note">
+        Illustrative complexity growth. This graph does not represent measured execution time.
+      </p>
+
+      <div class="complexity-grid">
+
+        <div class="complexity-card">
+          <span>Sum of Two Numbers</span>
+          <h3>O(1)</h3>
+          <p>Time Complexity</p>
+          <h3>O(1)</h3>
+          <p>Space Complexity</p>
+        </div>
+
+        <div class="complexity-card">
+          <span>Reverse a String</span>
+          <h3>O(n)</h3>
+          <p>Time Complexity</p>
+          <h3>O(n)</h3>
+          <p>Space Complexity</p>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
 
       <div class="coming-card">
 
