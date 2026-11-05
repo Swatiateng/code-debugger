@@ -23,6 +23,7 @@ public class CppLanguageAnalyzer implements LanguageAnalyzer {
             Path dir = Files.createTempDirectory("code-analysis-cpp-");
             Files.writeString(dir.resolve("main.cpp"), source);
             var compile = execution.run(List.of("g++", "-std=c++17", "main.cpp", "-o", "program"), dir, null);
+            if (!compile.finished()) return new ExecutionResult(false, false, true, compile.exitCode(), compile.stdout(), compile.stderr(), compile.durationMillis(), diagnostics(compile.stderr(), "TIMEOUT"));
             if (compile.exitCode() != 0) return new ExecutionResult(false, false, false, compile.exitCode(), compile.stdout(), compile.stderr(), compile.durationMillis(), diagnostics(compile.stderr(), "COMPILATION"));
             var run = execution.run(List.of(System.getProperty("os.name").toLowerCase().contains("win") ? "program.exe" : "./program"), dir, input);
             boolean error = run.exitCode() != 0 || !run.finished();

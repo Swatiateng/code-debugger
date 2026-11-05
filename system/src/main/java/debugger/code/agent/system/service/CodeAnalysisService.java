@@ -41,6 +41,11 @@ public class CodeAnalysisService {
         String firstInput = cases == null ? request.input() : cases.getFirst().input();
         ExecutionResult result = analyzer.analyze(request.code(), firstInput);
         String output = result.standardError().isBlank() ? result.standardOutput() : result.standardError();
+        if (result.timedOut()) {
+            output = (output == null || output.isBlank() ? "" : output + "\n")
+                    + "Execution timed out after " + result.durationMillis()
+                    + " ms; output may be incomplete.";
+        }
         List<TestCaseResult> caseResults = List.of();
         boolean wrongAnswer = false;
         if (cases != null && result.compiled()) {
@@ -61,11 +66,10 @@ public class CodeAnalysisService {
             caseResults = List.copyOf(results);
         }
 
-        AiExplanation explanation = !result.diagnostics().isEmpty()
-                ? aiExplanationService.explain(request.language(), request.code(), output)
-                : wrongAnswer
-                    ? new AiExplanation("One or more test cases failed.", "Look at the first red test case and reason through its input.")
-                    : new AiExplanation("The program compiled and ran successfully.", "Try another input to validate edge cases.");
+        List<TestCaseResult> failedCases = caseResults.stream().filter(testCase -> !testCase.passed()).toList();
+        AiExplanation explanation = aiExplanationService.explain(request.language(), request.code(), output,
+                request.problemStatement(), failedCases, request.studentReasoning(),
+                request.previousAiResponse(), request.previousHintLevel());
         String status = result.timedOut() ? "TIMEOUT"
                 : !result.diagnostics().isEmpty() ? "ERROR"
                 : wrongAnswer ? "WRONG_ANSWER" : "SUCCESS";

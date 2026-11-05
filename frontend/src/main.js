@@ -41,6 +41,9 @@ const monacoLanguages = {
 const languageSelect = document.getElementById("language");
 const resultBox = document.getElementById("result");
 const aiAnalysis = document.getElementById("aiAnalysis");
+const aiResponseForm = document.getElementById("ai-response-form");
+const aiResponseInput = document.getElementById("ai-response-input");
+const aiResponseSubmit = document.getElementById("ai-response-submit");
 const programInput = document.getElementById("program-input");
 
 const analyzeButton = document.getElementById("analyze-button");
@@ -49,6 +52,9 @@ const resetButton = document.getElementById("reset-button");
 const editorElement = document.getElementById("editor");
 
 let selectedProblem = null;
+let currentAnalysisPayload = null;
+let previousAiResponse = "";
+let previousHintLevel = 1;
 
 // ==================================================
 // MONACO EDITOR
@@ -98,6 +104,13 @@ function loadCurrentCode() {
 function resetAIAnalysis() {
   if (!aiAnalysis) return;
 
+  currentAnalysisPayload = null;
+  previousAiResponse = "";
+  previousHintLevel = 1;
+  if (aiResponseInput) aiResponseInput.value = "";
+  if (aiResponseInput) aiResponseInput.disabled = true;
+  if (aiResponseSubmit) aiResponseSubmit.disabled = true;
+
   aiAnalysis.textContent = "";
 
   const emptyState = document.createElement("div");
@@ -122,10 +135,21 @@ function resetAIAnalysis() {
 // DISPLAY AI RESULT
 // ==================================================
 
-function displayAIAnalysis(data) {
+function displayAIAnalysis(data, studentReasoning = null) {
   if (!aiAnalysis) return;
 
-  aiAnalysis.textContent = "";
+  if (!studentReasoning) {
+    aiAnalysis.textContent = "";
+  } else {
+    const studentReply = document.createElement("div");
+    studentReply.className = "ai-student-reply";
+    const studentLabel = document.createElement("strong");
+    studentLabel.textContent = "Your reasoning";
+    const studentText = document.createElement("p");
+    studentText.textContent = studentReasoning;
+    studentReply.append(studentLabel, studentText);
+    aiAnalysis.appendChild(studentReply);
+  }
 
   const wrapper = document.createElement("div");
   wrapper.className = "ai-result";
@@ -136,17 +160,38 @@ function displayAIAnalysis(data) {
   wrapper.appendChild(heading);
 
   if (data.diagnostics?.length) {
-    const diagnostics = document.createElement("pre");
-    diagnostics.textContent = JSON.stringify(data.diagnostics, null, 2);
-    wrapper.appendChild(diagnostics);
+    const diagnosticHeading = document.createElement("h4");
+    diagnosticHeading.textContent = "Compiler feedback";
+    const diagnostics = document.createElement("ul");
+    diagnostics.className = "compiler-feedback";
+    data.diagnostics.forEach(diagnostic => {
+      const item = document.createElement("li");
+      const location = diagnostic.line > 0 ? `Line ${diagnostic.line}` : "Program";
+      const kind = diagnostic.type?.toLowerCase().replaceAll("_", " ") ?? "diagnostic";
+      item.textContent = `${location}: ${diagnostic.message} (${kind})`;
+      diagnostics.appendChild(item);
+    });
+    wrapper.append(diagnosticHeading, diagnostics);
   }
 
   const explanation = document.createElement("p");
   explanation.textContent = data.aiExplanation;
+  explanation.className = "ai-explanation-text";
   const hint = document.createElement("p");
-  hint.textContent = `Hint: ${data.hint}`;
+  hint.textContent = `Next action: ${data.hint}`;
   wrapper.append(explanation, hint);
   aiAnalysis.appendChild(wrapper);
+
+  previousAiResponse = `${data.aiExplanation}\nNext action: ${data.hint}`;
+  const hintMatch = data.aiExplanation.match(/Hint\s+level(?:\s*\(\s*1\s*,\s*2\s*,\s*or\s*3\s*\))?\s*:?\s*([123])\b/i);
+  if (hintMatch) previousHintLevel = Number(hintMatch[1]);
+
+  const hasGuidedQuestion = /Guided question/i.test(data.aiExplanation);
+  if (aiResponseInput) aiResponseInput.disabled = !hasGuidedQuestion;
+  if (aiResponseSubmit) aiResponseSubmit.disabled = !hasGuidedQuestion;
+  if (aiResponseInput && hasGuidedQuestion) {
+    aiResponseInput.placeholder = "Share your thinking...";
+  }
 }
 
 function displayTestCases(testCases = []) {
@@ -225,6 +270,16 @@ analyzeButton.addEventListener("click", async () => {
   analyzeButton.textContent = "Analyzing...";
 
   try {
+    currentAnalysisPayload = {
+      language,
+      code,
+      problemId: selectedProblem?.id ?? null,
+      input,
+      problemStatement: selectedProblem
+        ? `${selectedProblem.title}\n${selectedProblem.description}\nInput: ${selectedProblem.input}\nOutput: ${selectedProblem.output}`
+        : null
+    };
+
     const response = await fetch("/api/analyze", {
       method: "POST",
 
@@ -232,12 +287,7 @@ analyzeButton.addEventListener("click", async () => {
         "Content-Type": "application/json"
       },
 
-      body: JSON.stringify({
-        language,
-        code,
-        problemId: selectedProblem?.id ?? null,
-        input
-      })
+      body: JSON.stringify(currentAnalysisPayload)
     });
 
     const contentType =
@@ -273,6 +323,52 @@ analyzeButton.addEventListener("click", async () => {
   } finally {
     analyzeButton.disabled = false;
     analyzeButton.textContent = "▶ Run";
+  }
+});
+
+aiResponseForm?.addEventListener("submit", async event => {
+  event.preventDefault();
+  const studentReasoning = aiResponseInput?.value.trim();
+  if (!studentReasoning || !currentAnalysisPayload) return;
+
+  aiResponseInput.disabled = true;
+  aiResponseSubmit.disabled = true;
+  aiResponseSubmit.textContent = "Thinking...";
+
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...currentAnalysisPayload,
+        studentReasoning,
+        previousAiResponse,
+        previousHintLevel
+      })
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : { error: await response.text() };
+    if (!response.ok) {
+      throw new Error(data.error || `AI response failed (HTTP ${response.status})`);
+    }
+
+    displayTestCases(data.testCases);
+    displayAIAnalysis(data, studentReasoning);
+    aiResponseInput.value = "";
+  } catch (error) {
+    const errorMessage = document.createElement("p");
+    errorMessage.className = "ai-response-error";
+    errorMessage.textContent = `Couldn't get an AI response: ${error.message}`;
+    aiAnalysis.appendChild(errorMessage);
+  } finally {
+    aiResponseSubmit.textContent = "Send";
+    const canContinue = /Guided question/i.test(previousAiResponse);
+    aiResponseInput.disabled = !canContinue;
+    aiResponseSubmit.disabled = !canContinue;
+    if (canContinue) aiResponseInput.focus();
   }
 });
 
@@ -383,6 +479,110 @@ int main() {
     }
   }
 ];
+
+const recentActivityStorageKey = "codemind-recent-problems";
+const recentActivityList = document.getElementById("recent-activity-list");
+
+function readRecentProblemIds() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(recentActivityStorageKey) || "[]");
+    return Array.isArray(saved)
+      ? saved.filter(item => item && typeof item.id === "string"
+          && problems.some(problem => problem.id === item.id))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function renderRecentActivity() {
+  if (!recentActivityList) return;
+
+  const recentItems = readRecentProblemIds();
+  recentActivityList.replaceChildren();
+
+  if (!recentItems.length) {
+    const emptyCard = document.createElement("div");
+    emptyCard.className = "activity-card";
+    const icon = document.createElement("div");
+    icon.className = "activity-icon";
+    icon.textContent = "◷";
+    const message = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = "No recent activity";
+    const detail = document.createElement("p");
+    detail.textContent = "Problems you open to solve will appear here.";
+    message.append(title, detail);
+    emptyCard.append(icon, message);
+    recentActivityList.appendChild(emptyCard);
+    return;
+  }
+
+  recentItems.forEach(item => {
+    const problem = problems.find(candidate => candidate.id === item.id);
+    if (!problem) return;
+
+    const activity = document.createElement("button");
+    activity.type = "button";
+    activity.className = "activity-card activity-item";
+    activity.dataset.activityProblemId = problem.id;
+    const icon = document.createElement("span");
+    icon.className = "activity-icon";
+    icon.textContent = "◷";
+    const details = document.createElement("span");
+    details.className = "activity-item-details";
+    const title = document.createElement("strong");
+    title.textContent = problem.title;
+    const subtitle = document.createElement("span");
+    subtitle.textContent = `${problem.difficulty} · Open in Code Lab`;
+    details.append(title, subtitle);
+    activity.append(icon, details);
+    recentActivityList.appendChild(activity);
+  });
+}
+
+function openProblem(problem) {
+  if (!problem) return;
+  selectedProblem = problem;
+
+  const recentItems = readRecentProblemIds().filter(item => item.id !== problem.id);
+  recentItems.unshift({ id: problem.id, openedAt: new Date().toISOString() });
+  try {
+    localStorage.setItem(recentActivityStorageKey, JSON.stringify(recentItems.slice(0, 5)));
+  } catch {
+    // Keep problem navigation working when browser storage is unavailable.
+  }
+  renderRecentActivity();
+
+  document.getElementById("problem-title").textContent = problem.title;
+  document.getElementById("problem-difficulty").textContent = problem.difficulty;
+  document.getElementById("problem-description").textContent = problem.description;
+  document.getElementById("problem-input-description").textContent = problem.input;
+  document.getElementById("problem-output-description").textContent = problem.output;
+  document.getElementById("problem-example-input").textContent = problem.exampleInput;
+  document.getElementById("problem-example-output").textContent = problem.exampleOutput;
+  document.getElementById("selected-problem").hidden = false;
+
+  loadCurrentCode();
+  programInput.value = "";
+  displayTestCases([]);
+  resultBox.textContent = "Your result will appear here.";
+  resetAIAnalysis();
+
+  if (typeof window.showPage === "function") window.showPage("codeLab");
+  enterFocusMode();
+}
+
+renderRecentActivity();
+
+if (recentActivityList) {
+  recentActivityList.addEventListener("click", event => {
+    const activity = event.target.closest("[data-activity-problem-id]");
+    if (!activity) return;
+    const problem = problems.find(item => item.id === activity.dataset.activityProblemId);
+    openProblem(problem);
+  });
+}
 
 // ==================================================
 // DISPLAY PROBLEM CARDS
@@ -574,52 +774,8 @@ if (problemList) {
 
     if (!card) return;
 
-    selectedProblem = problems.find(
-      problem => problem.id === card.dataset.problemId
-    );
-
-    if (!selectedProblem) return;
-
-    document.getElementById("problem-title").textContent =
-      selectedProblem.title;
-
-    document.getElementById("problem-difficulty").textContent =
-      selectedProblem.difficulty;
-
-    document.getElementById("problem-description").textContent =
-      selectedProblem.description;
-
-    document.getElementById("problem-input-description").textContent =
-      selectedProblem.input;
-
-    document.getElementById("problem-output-description").textContent =
-      selectedProblem.output;
-    document.getElementById("problem-example-input").textContent =
-      selectedProblem.exampleInput;
-    document.getElementById("problem-example-output").textContent =
-      selectedProblem.exampleOutput;
-
-    document.getElementById("selected-problem").hidden = false;
-
-    loadCurrentCode();
-
-    programInput.value = "";
-    displayTestCases([]);
-
-    resultBox.textContent =
-      "Your result will appear here.";
-
-    resetAIAnalysis();
-
-    // Navigate to Code Lab.
-
-    if (typeof window.showPage === "function") {
-      window.showPage("codeLab");
-    }
-
-    // Enter fullscreen.
-
-    enterFocusMode();
+    const problem = problems.find(item => item.id === card.dataset.problemId);
+    openProblem(problem);
 
   });
 

@@ -81,7 +81,11 @@ public class AnalysisHistoryService {
                     entity.getLanguage(),
                     entity.getSourceCode(),
                     null,
-                    entity.getStandardInput()
+                    entity.getStandardInput(),
+                    null,
+                    null,
+                    null,
+                    null
             );
 
             AnalyzeCodeResponse response = new AnalyzeCodeResponse(

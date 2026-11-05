@@ -26,6 +26,7 @@ public class JavaLanguageAnalyzer implements LanguageAnalyzer {
             String name = className(source);
             Files.writeString(dir.resolve(name + ".java"), source);
             var compile = execution.run(List.of("javac", name + ".java"), dir, null);
+            if (!compile.finished()) return result(false, false, true, compile, diagnostics(compile.stderr(), "TIMEOUT"));
             if (compile.exitCode() != 0) return result(false, false, false, compile, diagnostics(compile.stderr(), "COMPILATION"));
             var run = execution.run(List.of("java", "-cp", dir.toString(), name), dir, input);
             boolean error = run.exitCode() != 0 || !run.finished();
