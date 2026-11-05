@@ -4,6 +4,8 @@ package debugger.code.agent.system.model;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.List;
+
 public record AnalyzeCodeRequest(
         @NotNull Language language,
         @NotBlank String code,
@@ -18,6 +20,8 @@ public record AnalyzeCodeRequest(
         // Prior AI turn, used only as conversation context for progressive hints.
         String previousAiResponse,
         // Hint level shown in the previous AI turn.
-        Integer previousHintLevel
+        Integer previousHintLevel,
+        // Recent student replies for recognizing recurring assumptions during coaching.
+        List<String> studentReasoningHistory
 ) {
 }

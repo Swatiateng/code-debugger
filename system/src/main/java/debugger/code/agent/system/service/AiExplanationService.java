@@ -16,6 +16,7 @@ public interface AiExplanationService {
             List<TestCaseResult> failedTestCases,
             String studentReasoning,
             String previousAiResponse,
-            Integer previousHintLevel
+            Integer previousHintLevel,
+            List<String> studentReasoningHistory
     );
 }

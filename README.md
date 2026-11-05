@@ -15,4 +15,4 @@ cd system
 ./mvnw.cmd spring-boot:run
 ```
 
-The default model is `openai/gpt-oss-20b`. Override it with `$env:GROQ_MODEL` if your Groq account has access to another model. The default API URL is `https://api.groq.com/openai/v1/chat/completions`; set `$env:GROQ_BASE_URL` only if you use a compatible endpoint. Groq usage may incur charges according to your account and selected model.
+The default model is `qwen/qwen3.8-27b`. Override it with `$env:GROQ_MODEL` if your Groq account has access to another model. The default API URL is `https://api.groq.com/openai/v1/chat/completions`; set `$env:GROQ_BASE_URL` only if you use a compatible endpoint. Groq usage may incur charges according to your account and selected model.

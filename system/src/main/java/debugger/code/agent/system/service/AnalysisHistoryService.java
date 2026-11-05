@@ -85,6 +85,7 @@ public class AnalysisHistoryService {
                     null,
                     null,
                     null,
+                    null,
                     null
             );
 

@@ -54,7 +54,8 @@ const editorElement = document.getElementById("editor");
 let selectedProblem = null;
 let currentAnalysisPayload = null;
 let previousAiResponse = "";
-let previousHintLevel = 1;
+let previousHintLevel = 0;
+let studentReasoningHistory = [];
 
 // ==================================================
 // MONACO EDITOR
@@ -106,7 +107,8 @@ function resetAIAnalysis() {
 
   currentAnalysisPayload = null;
   previousAiResponse = "";
-  previousHintLevel = 1;
+  previousHintLevel = 0;
+  studentReasoningHistory = [];
   if (aiResponseInput) aiResponseInput.value = "";
   if (aiResponseInput) aiResponseInput.disabled = true;
   if (aiResponseSubmit) aiResponseSubmit.disabled = true;
@@ -178,18 +180,19 @@ function displayAIAnalysis(data, studentReasoning = null) {
   explanation.textContent = data.aiExplanation;
   explanation.className = "ai-explanation-text";
   const hint = document.createElement("p");
-  hint.textContent = `Next action: ${data.hint}`;
+  hint.textContent = `Your turn: ${data.hint}`;
   wrapper.append(explanation, hint);
   aiAnalysis.appendChild(wrapper);
 
-  previousAiResponse = `${data.aiExplanation}\nNext action: ${data.hint}`;
-  const hintMatch = data.aiExplanation.match(/Hint\s+level(?:\s*\(\s*1\s*,\s*2\s*,\s*or\s*3\s*\))?\s*:?\s*([123])\b/i);
-  if (hintMatch) previousHintLevel = Number(hintMatch[1]);
+  previousAiResponse = `${data.aiExplanation}\nFocused question: ${data.hint}`;
+  const hintMatch = data.aiExplanation.match(/Hint\s+level(?:\s*\([^)]*\))?\s*:?\s*([0-5])\b/i);
+  if (hintMatch) previousHintLevel = Math.max(previousHintLevel, Number(hintMatch[1]));
 
-  const hasGuidedQuestion = /Guided question/i.test(data.aiExplanation);
-  if (aiResponseInput) aiResponseInput.disabled = !hasGuidedQuestion;
-  if (aiResponseSubmit) aiResponseSubmit.disabled = !hasGuidedQuestion;
-  if (aiResponseInput && hasGuidedQuestion) {
+  const hasFocusedQuestion = Boolean(data.hint)
+    && /Hint\s+level\s*:?\s*[0-5]\b/i.test(data.aiExplanation);
+  if (aiResponseInput) aiResponseInput.disabled = !hasFocusedQuestion;
+  if (aiResponseSubmit) aiResponseSubmit.disabled = !hasFocusedQuestion;
+  if (aiResponseInput && hasFocusedQuestion) {
     aiResponseInput.placeholder = "Share your thinking...";
   }
 }
@@ -336,12 +339,19 @@ aiResponseForm?.addEventListener("submit", async event => {
   aiResponseSubmit.textContent = "Thinking...";
 
   try {
+    const latestAnalysisPayload = {
+      ...currentAnalysisPayload,
+      language: languageSelect.value,
+      code: editor.getValue(),
+      input: programInput.value
+    };
     const response = await fetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...currentAnalysisPayload,
+        ...latestAnalysisPayload,
         studentReasoning,
+        studentReasoningHistory,
         previousAiResponse,
         previousHintLevel
       })
@@ -355,6 +365,11 @@ aiResponseForm?.addEventListener("submit", async event => {
       throw new Error(data.error || `AI response failed (HTTP ${response.status})`);
     }
 
+    currentAnalysisPayload = latestAnalysisPayload;
+    studentReasoningHistory = [...studentReasoningHistory, studentReasoning].slice(-8);
+    resultBox.textContent = data.compilerOutput
+      || data.output
+      || "Program finished without producing output.";
     displayTestCases(data.testCases);
     displayAIAnalysis(data, studentReasoning);
     aiResponseInput.value = "";
@@ -365,7 +380,7 @@ aiResponseForm?.addEventListener("submit", async event => {
     aiAnalysis.appendChild(errorMessage);
   } finally {
     aiResponseSubmit.textContent = "Send";
-    const canContinue = /Guided question/i.test(previousAiResponse);
+    const canContinue = /Focused question/i.test(previousAiResponse);
     aiResponseInput.disabled = !canContinue;
     aiResponseSubmit.disabled = !canContinue;
     if (canContinue) aiResponseInput.focus();
