@@ -933,6 +933,49 @@ body {
 .test-results-panel[hidden] { display: none; }
 .test-results-content { padding: 4px 16px 12px; }
 
+.benchmark-panel {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  overflow: hidden;
+  background: var(--card);
+}
+.benchmark-panel[hidden] { display: none; }
+.benchmark-controls { display: flex; align-items: center; gap: 12px; padding: 16px; }
+.benchmark-controls label { color: var(--muted); font-size: 13px; }
+.benchmark-controls select {
+  min-width: 240px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-light);
+  color: var(--text);
+}
+.algorithm-compare-panel { margin-top: 24px; }
+.algorithm-compare-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
+.compare-select-field { display: grid; gap: 7px; }
+.algorithm-compare-controls select { width: 100%; min-width: 0; }
+.algorithm-compare-controls button { justify-self: start; }
+.complexity-graphs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 0 16px 16px; }
+.complexity-graphs[hidden] { display: none; }
+.complexity-graph-card { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: #0c0f17; }
+.complexity-graph-card h3 { margin: 0 0 10px; font-size: 15px; }
+.complexity-labels { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+.complexity-legend-item { display: flex; align-items: center; gap: 8px; }
+.complexity-legend-item i { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.benchmark-chart { width: 100%; margin-top: 8px; }
+.benchmark-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.benchmark-axis { fill: none; stroke: #535b6c; stroke-width: 1.5; }
+.benchmark-label { fill: #aeb6c8; font-size: 12px; }
+.benchmark-note { margin: 0; padding: 0 16px 16px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+@media (max-width: 850px) {
+  .complexity-graphs { grid-template-columns: minmax(0, 1fr); }
+  .benchmark-controls { align-items: flex-start; flex-direction: column; }
+  .benchmark-controls select { width: 100%; min-width: 0; }
+  .algorithm-compare-controls { grid-template-columns: minmax(0, 1fr); }
+}
+
 .test-case-result {
   margin: 12px 0;
   padding: 12px;

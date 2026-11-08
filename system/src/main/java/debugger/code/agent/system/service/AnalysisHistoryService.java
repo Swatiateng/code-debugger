@@ -41,6 +41,13 @@ public class AnalysisHistoryService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public AnalysisStats getStats() {
+        long analyzed = analysisHistoryRepository.count();
+        long withErrors = analysisHistoryRepository.countByStatusNot("SUCCESS");
+        return new AnalysisStats(analyzed, withErrors);
+    }
+
     private AnalysisHistoryEntity toEntity(
             AnalyzeCodeRequest request,
             AnalyzeCodeResponse response

@@ -1,6 +1,7 @@
 package debugger.code.agent.system.controller;
 
 import debugger.code.agent.system.model.AnalysisHistoryItem;
+import debugger.code.agent.system.model.AnalysisStats;
 import debugger.code.agent.system.model.AnalyzeCodeRequest;
 import debugger.code.agent.system.model.AnalyzeCodeResponse;
 import debugger.code.agent.system.service.AnalysisHistoryService;
@@ -41,5 +42,10 @@ public class CodeAnalysisController {
     @GetMapping("/analyze")
     public ResponseEntity<List<AnalysisHistoryItem>> getAllAnalyses() {
         return ResponseEntity.ok(analysisHistoryService.findAll());
+    }
+
+    @GetMapping("/analyze/stats")
+    public ResponseEntity<AnalysisStats> getAnalysisStats() {
+        return ResponseEntity.ok(analysisHistoryService.getStats());
     }
 }
