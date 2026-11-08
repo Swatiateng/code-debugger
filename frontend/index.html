@@ -62,7 +62,7 @@
           <span class="stat-icon">⌘</span>
 
           <div>
-            <h3>0</h3>
+            <h3 id="programs-analyzed-count">0</h3>
             <p>Programs Analyzed</p>
           </div>
         </div>
@@ -71,8 +71,8 @@
           <span class="stat-icon">✓</span>
 
           <div>
-            <h3>0</h3>
-            <p>Errors Detected</p>
+            <h3 id="errors-detected-count">0</h3>
+            <p>Analyses With Errors</p>
           </div>
         </div>
 
@@ -214,6 +214,10 @@
           Ready
         </div>
 
+        <button type="button" id="practice-mode-button" class="secondary-button">
+          Practice any program
+        </button>
+
       </div>
 
 
@@ -335,7 +339,7 @@
 
             <div class="panel-header">
 
-              <strong>Program Input</strong>
+                <strong>Custom Test Input</strong>
 
               <span>Optional</span>
 
@@ -343,7 +347,7 @@
 
             <textarea
               id="program-input"
-              placeholder="Enter input for the program..."
+              placeholder="Enter custom test input. Run the code to see its output..."
             ></textarea>
 
           </div>
@@ -454,22 +458,31 @@
       </div>
 
 
-      <div class="coming-card">
-
-        <div class="coming-icon">⇄</div>
-
-        <h2>Algorithm Comparison</h2>
-
-        <p>
-          This module will allow you to compare two
-          algorithms and visualize their performance.
-        </p>
-
-        <span class="module-status">
-          Coming with backend integration
-        </span>
-
-      </div>
+      <section class="benchmark-panel algorithm-compare-panel" aria-live="polite">
+        <div class="panel-header">
+          <div><span class="panel-dot"></span><strong>Compare Time Complexity</strong></div>
+          <span id="benchmark-summary">Choose a solved problem</span>
+        </div>
+        <div class="benchmark-controls algorithm-compare-controls">
+          <div class="compare-select-field">
+            <label for="compare-first-problem">First solved problem</label>
+            <select id="compare-first-problem"><option value="">Select a solved problem</option></select>
+          </div>
+          <div class="compare-select-field">
+            <label for="compare-second-problem">Optional comparison</label>
+            <select id="compare-second-problem"><option value="">No comparison</option></select>
+          </div>
+          <button type="button" id="compare-algorithm-complexity" class="primary-button" disabled>Compare Complexity</button>
+        </div>
+        <div id="complexity-graphs" class="complexity-graphs" hidden>
+          <section class="complexity-graph-card">
+            <h3>Time Complexity</h3>
+            <div id="time-complexity-labels" class="complexity-labels"></div>
+            <div id="time-complexity-chart" class="benchmark-chart"></div>
+          </section>
+        </div>
+        <p class="benchmark-note">The graph shows theoretical Big O growth trends registered for each problem, not measured runtime or analysis of submitted code.</p>
+      </section>
 
     </div>
 

@@ -45,9 +45,16 @@ const aiResponseForm = document.getElementById("ai-response-form");
 const aiResponseInput = document.getElementById("ai-response-input");
 const aiResponseSubmit = document.getElementById("ai-response-submit");
 const programInput = document.getElementById("program-input");
+const programsAnalyzedCount = document.getElementById("programs-analyzed-count");
+const errorsDetectedCount = document.getElementById("errors-detected-count");
 
 const analyzeButton = document.getElementById("analyze-button");
 const resetButton = document.getElementById("reset-button");
+const benchmarkSummary = document.getElementById("benchmark-summary");
+const compareFirstProblem = document.getElementById("compare-first-problem");
+const compareSecondProblem = document.getElementById("compare-second-problem");
+const compareAlgorithmComplexityButton = document.getElementById("compare-algorithm-complexity");
+const complexityGraphs = document.getElementById("complexity-graphs");
 
 const editorElement = document.getElementById("editor");
 
@@ -56,6 +63,20 @@ let currentAnalysisPayload = null;
 let previousAiResponse = "";
 let previousHintLevel = 0;
 let studentReasoningHistory = [];
+
+async function refreshAnalysisStats() {
+  if (!programsAnalyzedCount || !errorsDetectedCount) return;
+  try {
+    const response = await fetch("/api/analyze/stats");
+    if (!response.ok) throw new Error(`Stats request failed (HTTP ${response.status})`);
+    const stats = await response.json();
+    programsAnalyzedCount.textContent = String(stats.programsAnalyzed ?? 0);
+    errorsDetectedCount.textContent = String(stats.errorsDetected ?? 0);
+  } catch (error) {
+    // Keep the dashboard usable while the backend is unavailable.
+    console.error("Could not refresh analysis stats:", error);
+  }
+}
 
 // ==================================================
 // MONACO EDITOR
@@ -77,6 +98,23 @@ const editor = monaco.editor.create(editorElement, {
   padding: {
     top: 12
   }
+});
+
+// Keep the editor editable while preventing clipboard copy, cut, and paste.
+const editorDomNode = editor.getDomNode();
+if (editorDomNode) {
+  ["copy", "cut", "paste"].forEach(eventName => {
+    editorDomNode.addEventListener(eventName, event => event.preventDefault(), true);
+  });
+  editorDomNode.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) && ["c", "x", "v"].includes(event.key.toLowerCase())) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+}
+
+editor.onDidChangeModelContent(() => {
 });
 
 // ==================================================
@@ -190,8 +228,9 @@ function displayAIAnalysis(data, studentReasoning = null) {
 
   const hasFocusedQuestion = Boolean(data.hint)
     && /Hint\s+level\s*:?\s*[0-5]\b/i.test(data.aiExplanation);
-  if (aiResponseInput) aiResponseInput.disabled = !hasFocusedQuestion;
-  if (aiResponseSubmit) aiResponseSubmit.disabled = !hasFocusedQuestion;
+  const problemFocusLocked = Boolean(selectedProblem && !document.fullscreenElement);
+  if (aiResponseInput) aiResponseInput.disabled = !hasFocusedQuestion || problemFocusLocked;
+  if (aiResponseSubmit) aiResponseSubmit.disabled = !hasFocusedQuestion || problemFocusLocked;
   if (aiResponseInput && hasFocusedQuestion) {
     aiResponseInput.placeholder = "Share your thinking...";
   }
@@ -260,6 +299,12 @@ languageSelect.addEventListener("change", () => {
 // ==================================================
 
 analyzeButton.addEventListener("click", async () => {
+  if (selectedProblem && !document.fullscreenElement) {
+    showFocusNotification("Open this problem in fullscreen focus mode to submit your solution.");
+    await enterFocusMode();
+    return;
+  }
+
   const language = languageSelect.value;
   const code = editor.getValue();
   const input = programInput?.value ?? "";
@@ -314,7 +359,13 @@ analyzeButton.addEventListener("click", async () => {
       "Program finished without producing output.";
 
     displayTestCases(data.testCases);
+    if (selectedProblem?.complexity && data.testCases?.length
+      && data.testCases.every(testCase => testCase.passed)) {
+      rememberSolvedProblem(selectedProblem.id);
+      populateSolvedProblemSelects();
+    }
     displayAIAnalysis(data);
+    await refreshAnalysisStats();
 
   } catch (error) {
     console.error("Analysis error:", error);
@@ -324,13 +375,18 @@ analyzeButton.addEventListener("click", async () => {
     displayError(error.message);
 
   } finally {
-    analyzeButton.disabled = false;
+    analyzeButton.disabled = Boolean(selectedProblem && !document.fullscreenElement);
     analyzeButton.textContent = "▶ Run";
   }
 });
 
 aiResponseForm?.addEventListener("submit", async event => {
   event.preventDefault();
+  if (selectedProblem && !document.fullscreenElement) {
+    showFocusNotification("Open this problem in fullscreen focus mode to continue.");
+    await enterFocusMode();
+    return;
+  }
   const studentReasoning = aiResponseInput?.value.trim();
   if (!studentReasoning || !currentAnalysisPayload) return;
 
@@ -372,6 +428,7 @@ aiResponseForm?.addEventListener("submit", async event => {
       || "Program finished without producing output.";
     displayTestCases(data.testCases);
     displayAIAnalysis(data, studentReasoning);
+    await refreshAnalysisStats();
     aiResponseInput.value = "";
   } catch (error) {
     const errorMessage = document.createElement("p");
@@ -381,8 +438,9 @@ aiResponseForm?.addEventListener("submit", async event => {
   } finally {
     aiResponseSubmit.textContent = "Send";
     const canContinue = /Focused question/i.test(previousAiResponse);
-    aiResponseInput.disabled = !canContinue;
-    aiResponseSubmit.disabled = !canContinue;
+    const problemFocusLocked = Boolean(selectedProblem && !document.fullscreenElement);
+    aiResponseInput.disabled = !canContinue || problemFocusLocked;
+    aiResponseSubmit.disabled = !canContinue || problemFocusLocked;
     if (canContinue) aiResponseInput.focus();
   }
 });
@@ -407,6 +465,238 @@ resetButton.addEventListener("click", () => {
 // PROBLEM DATA
 // ==================================================
 
+function makeProblemStarter(algorithm, isSearch = false) {
+  if (isSearch) {
+    return {
+      JAVA: `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        int n = scanner.nextInt();
+        int[] values = new int[n];
+        for (int i = 0; i < n; i++) values[i] = scanner.nextInt();
+        int target = scanner.nextInt();
+
+        // TODO: implement ${algorithm} and print the required index
+    }
+}`,
+      PYTHON: `data = list(map(int, input().split()))
+n = data[0]
+values = data[1:1 + n]
+target = data[1 + n]
+
+# TODO: implement ${algorithm} and print the required index
+`,
+      CPP: `#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    vector<int> values(n);
+    for (int& value : values) cin >> value;
+    int target;
+    cin >> target;
+
+    // TODO: implement ${algorithm} and print the required index
+    return 0;
+}`
+    };
+  }
+
+  return {
+    JAVA: `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        int n = scanner.nextInt();
+        int[] values = new int[n];
+        for (int i = 0; i < n; i++) values[i] = scanner.nextInt();
+
+        // TODO: implement ${algorithm}
+        // Print the sorted values separated by spaces.
+    }
+}`,
+    PYTHON: `data = list(map(int, input().split()))
+n = data[0]
+values = data[1:1 + n]
+
+# TODO: implement ${algorithm}
+# Print the sorted values separated by spaces.
+`,
+    CPP: `#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    vector<int> values(n);
+    for (int& value : values) cin >> value;
+
+    // TODO: implement ${algorithm}
+    // Print the sorted values separated by spaces.
+    return 0;
+}`
+  };
+}
+
+function complexityValue(growth, n) {
+  switch (growth) {
+    case "logn": return Math.log2(n);
+    case "n": return n;
+    case "nlogn": return n * Math.log2(n);
+    case "n2": return n * n;
+    default: return 1;
+  }
+}
+
+function renderComplexityGraph(container, labelsContainer, comparedProblems) {
+  const series = comparedProblems.map((problem, index) => ({
+    problem,
+    color: index === 0 ? "#a78bfa" : "#22d3ee"
+  }));
+  const sizes = [10, 100, 1000, 10000];
+  const width = 620;
+  const height = 280;
+  const margin = { top: 18, right: 20, bottom: 46, left: 52 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const values = series.flatMap(item => sizes.map(size => complexityValue(item.problem.complexity.timeGrowth, size)));
+  const minLog = Math.min(...values.map(value => Math.log10(value)));
+  const maxLog = Math.max(...values.map(value => Math.log10(value)));
+  const x = index => margin.left + (index / (sizes.length - 1)) * plotWidth;
+  const y = value => margin.top + plotHeight - ((Math.log10(value) - minLog) / Math.max(1, maxLog - minLog)) * plotHeight;
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `Theoretical time complexity comparison for ${comparedProblems.map(problem => problem.title).join(" and ")}`);
+
+  const axis = document.createElementNS(ns, "path");
+  axis.setAttribute("d", `M ${margin.left} ${margin.top} V ${margin.top + plotHeight} H ${width - margin.right}`);
+  axis.setAttribute("class", "benchmark-axis");
+  svg.appendChild(axis);
+
+  sizes.forEach((size, index) => {
+    const label = document.createElementNS(ns, "text");
+    label.textContent = size.toLocaleString();
+    label.setAttribute("x", x(index));
+    label.setAttribute("y", height - 20);
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("class", "benchmark-label");
+    svg.appendChild(label);
+  });
+
+  series.forEach(({ problem, color }) => {
+    const coordinates = sizes.map((size, index) => `${x(index)},${y(complexityValue(problem.complexity.timeGrowth, size))}`);
+    const line = document.createElementNS(ns, "polyline");
+    line.setAttribute("points", coordinates.join(" "));
+    line.setAttribute("fill", "none");
+    line.setAttribute("stroke", color);
+    line.setAttribute("stroke-width", "3");
+    svg.appendChild(line);
+    sizes.forEach((size, index) => {
+      const point = document.createElementNS(ns, "circle");
+      point.setAttribute("cx", x(index));
+      point.setAttribute("cy", y(complexityValue(problem.complexity.timeGrowth, size)));
+      point.setAttribute("r", "4");
+      point.setAttribute("fill", color);
+      const title = document.createElementNS(ns, "title");
+      title.textContent = `${problem.title} · n=${size} · ${problem.complexity.timeComplexity}`;
+      point.appendChild(title);
+      svg.appendChild(point);
+    });
+  });
+
+  container.replaceChildren(svg);
+  labelsContainer.replaceChildren(...series.map(({ problem, color }) => {
+    const label = document.createElement("span");
+    label.className = "complexity-legend-item";
+    const swatch = document.createElement("i");
+    swatch.style.backgroundColor = color;
+    const text = document.createElement("span");
+    text.textContent = `${problem.title}: ${problem.complexity.timeComplexity}`;
+    label.append(swatch, text);
+    return label;
+  }));
+}
+
+function populateSolvedProblemSelects() {
+  const solvedIds = readSolvedProblemIds();
+  const solvedProblems = solvedIds
+    .map(id => problems.find(problem => problem.id === id))
+    .filter(problem => problem?.complexity);
+  [compareFirstProblem, compareSecondProblem].forEach(select => {
+    if (!select) return;
+    const previousValue = select.value;
+    const placeholder = select === compareSecondProblem ? "No comparison" : "Select a solved problem";
+    select.replaceChildren(new Option(placeholder, ""));
+    solvedProblems.forEach(problem => select.add(new Option(problem.title, problem.id)));
+    if (solvedProblems.some(problem => problem.id === previousValue)) select.value = previousValue;
+    else if (select === compareFirstProblem && solvedProblems.length) {
+      select.value = solvedProblems.at(-1).id;
+    }
+  });
+  if (compareAlgorithmComplexityButton) {
+    compareAlgorithmComplexityButton.disabled = !compareFirstProblem.value
+      || (compareSecondProblem.value && compareFirstProblem.value === compareSecondProblem.value);
+  }
+  if (complexityGraphs?.hidden && benchmarkSummary) {
+    benchmarkSummary.textContent = solvedProblems.length
+      ? "Choose a solved problem, then optionally add another"
+      : "Pass all tests on a problem to enable its graph";
+  }
+}
+
+function handleCompareSelectionChange() {
+  complexityGraphs.hidden = true;
+  populateSolvedProblemSelects();
+}
+
+compareFirstProblem?.addEventListener("change", handleCompareSelectionChange);
+compareSecondProblem?.addEventListener("change", handleCompareSelectionChange);
+
+compareAlgorithmComplexityButton?.addEventListener("click", () => {
+  const first = problems.find(problem => problem.id === compareFirstProblem.value);
+  const second = problems.find(problem => problem.id === compareSecondProblem.value);
+  const solvedIds = readSolvedProblemIds();
+  if (!first?.complexity || !solvedIds.includes(first.id)) return;
+  const comparedProblems = [first];
+  if (second?.complexity && second.id !== first.id && solvedIds.includes(second.id)) {
+    comparedProblems.push(second);
+  } else if (compareSecondProblem.value && compareSecondProblem.value === first.id) {
+    return;
+  }
+
+  renderComplexityGraph(
+    document.getElementById("time-complexity-chart"),
+    document.getElementById("time-complexity-labels"),
+    comparedProblems
+  );
+  benchmarkSummary.textContent = comparedProblems.length === 2
+    ? `${first.title} (${first.complexity.timeComplexity}) vs ${second.title} (${second.complexity.timeComplexity})`
+    : `${first.title}: ${first.complexity.timeComplexity}`;
+  complexityGraphs.hidden = false;
+  complexityGraphs.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
+
+const complexityProfiles = {
+  "sum-two-numbers": { timeComplexity: "O(1)", spaceComplexity: "O(1)", timeGrowth: "constant", spaceGrowth: "constant" },
+  "reverse-string": { timeComplexity: "O(n)", spaceComplexity: "O(n)", timeGrowth: "n", spaceGrowth: "n" },
+  "bubble-sort": { timeComplexity: "O(n²)", spaceComplexity: "O(1)", timeGrowth: "n2", spaceGrowth: "constant" },
+  "selection-sort": { timeComplexity: "O(n²)", spaceComplexity: "O(1)", timeGrowth: "n2", spaceGrowth: "constant" },
+  "insertion-sort": { timeComplexity: "O(n²) average/worst", spaceComplexity: "O(1)", timeGrowth: "n2", spaceGrowth: "constant" },
+  "merge-sort": { timeComplexity: "O(n log n)", spaceComplexity: "O(n)", timeGrowth: "nlogn", spaceGrowth: "n" },
+  "quick-sort": { timeComplexity: "O(n log n) average", spaceComplexity: "O(log n) average", timeGrowth: "nlogn", spaceGrowth: "logn" },
+  "binary-search": { timeComplexity: "O(log n)", spaceComplexity: "O(1)", timeGrowth: "logn", spaceGrowth: "constant" },
+  "first-occurrence": { timeComplexity: "O(log n)", spaceComplexity: "O(1)", timeGrowth: "logn", spaceGrowth: "constant" },
+  "search-insert-position": { timeComplexity: "O(log n)", spaceComplexity: "O(1)", timeGrowth: "logn", spaceGrowth: "constant" }
+};
+
 const problems = [
   {
     id: "sum-two-numbers",
@@ -417,6 +707,7 @@ const problems = [
     output: "Print their sum.",
     exampleInput: "2 3",
     exampleOutput: "5",
+    complexity: complexityProfiles["sum-two-numbers"],
 
     starter: {
       JAVA: `import java.util.Scanner;
@@ -460,6 +751,7 @@ int main() {
     output: "Print the text in reverse.",
     exampleInput: "hello",
     exampleOutput: "olleh",
+    complexity: complexityProfiles["reverse-string"],
 
     starter: {
       JAVA: `import java.util.Scanner;
@@ -492,11 +784,61 @@ int main() {
     return 0;
 }`
     }
-  }
+  },
+  ...[
+    ["bubble-sort", "Bubble Sort", "Easy", "Sort integers in ascending order using bubble sort."],
+    ["selection-sort", "Selection Sort", "Easy", "Sort integers in ascending order using selection sort."],
+    ["insertion-sort", "Insertion Sort", "Easy", "Sort integers in ascending order using insertion sort."],
+    ["merge-sort", "Merge Sort", "Medium", "Sort integers in ascending order using merge sort."],
+    ["quick-sort", "Quick Sort", "Medium", "Sort integers in ascending order using quick sort."]
+  ].map(([id, title, difficulty, description]) => ({
+    id, title, difficulty, description,
+    complexity: complexityProfiles[id],
+    input: "An integer n followed by n integers.",
+    output: "Print the n integers in ascending order, separated by spaces.",
+    exampleInput: "5 5 1 4 2 8",
+    exampleOutput: "1 2 4 5 8",
+    starter: makeProblemStarter(title.toLowerCase())
+  })),
+  ...[
+    ["binary-search", "Binary Search", "Easy", "Find a target in a sorted array. Print any matching zero-based index, or -1 if it is absent.", "6 1 3 5 7 9 11 7", "3", "binary search"],
+    ["first-occurrence", "First Occurrence in a Sorted Array", "Medium", "Find the first zero-based index of a target in a sorted array, or print -1 if it is absent.", "7 1 2 2 2 4 7 9 2", "1", "binary search for the first occurrence"],
+    ["search-insert-position", "Search Insert Position", "Easy", "Print the zero-based index of the target, or the index where it belongs to keep the array sorted.", "4 1 3 5 6 2", "1", "binary search for the insertion position"]
+  ].map(([id, title, difficulty, description, exampleInput, exampleOutput, algorithm]) => ({
+    id, title, difficulty, description,
+    complexity: complexityProfiles[id],
+    input: "An integer n, followed by n sorted integers and then the target.",
+    output: "Print the required zero-based index.",
+    exampleInput, exampleOutput,
+    starter: makeProblemStarter(algorithm, true)
+  }))
 ];
 
 const recentActivityStorageKey = "codemind-recent-problems";
+const solvedProblemsStorageKey = "codemind-solved-problems";
 const recentActivityList = document.getElementById("recent-activity-list");
+
+function readSolvedProblemIds() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(solvedProblemsStorageKey) || "[]");
+    return Array.isArray(saved)
+      ? [...new Set(saved.filter(id => typeof id === "string"
+          && problems.some(problem => problem.id === id && problem.complexity)))]
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberSolvedProblem(problemId) {
+  try {
+    const solvedIds = new Set(readSolvedProblemIds());
+    solvedIds.add(problemId);
+    localStorage.setItem(solvedProblemsStorageKey, JSON.stringify([...solvedIds]));
+  } catch {
+    // Keep analysis working when browser storage is unavailable.
+  }
+}
 
 function readRecentProblemIds() {
   try {
@@ -559,6 +901,7 @@ function renderRecentActivity() {
 function openProblem(problem) {
   if (!problem) return;
   selectedProblem = problem;
+  setProblemFocusLock();
 
   const recentItems = readRecentProblemIds().filter(item => item.id !== problem.id);
   recentItems.unshift({ id: problem.id, openedAt: new Date().toISOString() });
@@ -577,6 +920,7 @@ function openProblem(problem) {
   document.getElementById("problem-example-input").textContent = problem.exampleInput;
   document.getElementById("problem-example-output").textContent = problem.exampleOutput;
   document.getElementById("selected-problem").hidden = false;
+  document.getElementById("practice-mode-button").hidden = true;
 
   loadCurrentCode();
   programInput.value = "";
@@ -585,9 +929,35 @@ function openProblem(problem) {
   resetAIAnalysis();
 
   if (typeof window.showPage === "function") window.showPage("codeLab");
-  enterFocusMode();
+  enterFocusMode().then(entered => {
+    if (entered) return;
+    selectedProblem = null;
+    document.getElementById("selected-problem").hidden = true;
+    document.getElementById("practice-mode-button").hidden = false;
+    setProblemFocusLock();
+    loadCurrentCode();
+    if (typeof window.showPage === "function") window.showPage("problems");
+  });
 }
 
+function openPracticeMode() {
+  if (document.fullscreenElement) {
+    isFocusModeActive = false;
+    document.exitFullscreen().catch(() => {});
+  }
+  selectedProblem = null;
+  document.getElementById("selected-problem").hidden = true;
+  document.getElementById("practice-mode-button").hidden = false;
+  setProblemFocusLock();
+  loadCurrentCode();
+  programInput.value = "";
+  displayTestCases([]);
+  resultBox.textContent = "Your result will appear here.";
+  resetAIAnalysis();
+  if (typeof window.showPage === "function") window.showPage("codeLab");
+}
+
+populateSolvedProblemSelects();
 renderRecentActivity();
 
 if (recentActivityList) {
@@ -633,6 +1003,20 @@ if (problemList) {
 
 let isFocusModeActive = false;
 let notificationTimer = null;
+let focusExitMessage = "You exited Focus Mode.";
+
+function setProblemFocusLock() {
+  const locked = Boolean(selectedProblem && !document.fullscreenElement);
+  editor.updateOptions({ readOnly: locked });
+  analyzeButton.disabled = locked;
+  resetButton.disabled = locked;
+  languageSelect.disabled = locked;
+  programInput.disabled = locked;
+  if (aiResponseInput) aiResponseInput.disabled = locked || !currentAnalysisPayload;
+  if (aiResponseSubmit) aiResponseSubmit.disabled = locked || !currentAnalysisPayload;
+  if (locked) {
+  }
+}
 
 // ==================================================
 // SHOW NOTIFICATION
@@ -672,26 +1056,34 @@ function showFocusNotification(message) {
 async function enterFocusMode() {
 
   if (document.fullscreenElement) {
-    return;
+    isFocusModeActive = true;
+    setProblemFocusLock();
+    return true;
   }
 
   try {
 
     isFocusModeActive = true;
+    focusExitMessage = "You exited Focus Mode.";
 
     await document.documentElement.requestFullscreen();
 
+    setProblemFocusLock();
+
     console.log("Focus Mode activated.");
+    return true;
 
   } catch (error) {
 
     console.error("Fullscreen error:", error);
 
     isFocusModeActive = false;
+    setProblemFocusLock();
 
     showFocusNotification(
-      "Fullscreen could not start. Please try again."
+      "Fullscreen is required to solve problems. Allow fullscreen, then open the problem again."
     );
+    return false;
   }
 }
 
@@ -710,8 +1102,11 @@ document.addEventListener("fullscreenchange", () => {
 
   if (isFullscreen) {
     isFocusModeActive = true;
+    setProblemFocusLock();
     return;
   }
+
+  setProblemFocusLock();
 
   // Fullscreen exited using ESC or browser controls.
 
@@ -726,13 +1121,23 @@ document.addEventListener("fullscreenchange", () => {
 
     // Show exit notification.
     showFocusNotification(
-      "You exited Focus Mode."
+      focusExitMessage
     );
+    focusExitMessage = "You exited Focus Mode.";
 
     console.log("Focus Mode exited.");
 
   }
 
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && selectedProblem && document.fullscreenElement) {
+    focusExitMessage = "Focus Mode exited because you switched tabs.";
+    document.exitFullscreen().catch(error => {
+      console.error("Could not exit fullscreen after tab switch:", error);
+    });
+  }
 });
 
 // ==================================================
@@ -746,7 +1151,13 @@ document.querySelectorAll(".nav-link[data-page]").forEach(link => {
   link.addEventListener("click", () => {
 
     if (link.dataset.page === "codeLab") {
-      enterFocusMode();
+      // Returning to Code Lab during a focused problem should only restore
+      // the page view. Keep the selected problem and fullscreen session intact.
+      if (selectedProblem && document.fullscreenElement) {
+        window.showPage("codeLab");
+        return;
+      }
+      openPracticeMode();
     }
 
   });
@@ -760,7 +1171,7 @@ const openCodeLabButton =
 
 if (openCodeLabButton) {
   openCodeLabButton.addEventListener("click", () => {
-    enterFocusMode();
+    openPracticeMode();
   });
 }
 
@@ -771,9 +1182,11 @@ const quickCodeLabButton =
 
 if (quickCodeLabButton) {
   quickCodeLabButton.addEventListener("click", () => {
-    enterFocusMode();
+    openPracticeMode();
   });
 }
+
+document.getElementById("practice-mode-button")?.addEventListener("click", openPracticeMode);
 
 // ==================================================
 // SELECT A PROBLEM
@@ -820,6 +1233,7 @@ if (backToProblemsButton) {
 // ==================================================
 
 resetAIAnalysis();
+refreshAnalysisStats();
 
 console.log("CodeMind AI initialized successfully.");
 

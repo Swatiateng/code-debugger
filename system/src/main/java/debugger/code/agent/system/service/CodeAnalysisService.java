@@ -37,8 +37,10 @@ public class CodeAnalysisService {
             throw new IllegalArgumentException("Unknown problem: " + request.problemId());
         }
 
-        // Run the first problem case to compile the code and get the standard output shown in the output panel.
-        String firstInput = cases == null ? request.input() : cases.getFirst().input();
+        // Run user-provided input for the output panel; otherwise use the first saved problem case.
+        String firstInput = request.input() != null && !request.input().isEmpty()
+                ? request.input()
+                : cases == null ? request.input() : cases.getFirst().input();
         ExecutionResult result = analyzer.analyze(request.code(), firstInput);
         String output = result.standardError().isBlank() ? result.standardOutput() : result.standardError();
         if (result.timedOut()) {

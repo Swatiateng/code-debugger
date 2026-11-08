@@ -9,4 +9,6 @@ public interface AnalysisHistoryRepository
         extends JpaRepository<AnalysisHistoryEntity, Long> {
 
     List<AnalysisHistoryEntity> findAllByOrderByCreatedAtDesc();
+
+    long countByStatusNot(String status);
 }
