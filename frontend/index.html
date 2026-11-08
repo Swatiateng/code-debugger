@@ -44,7 +44,7 @@
           <h1>Welcome to CodeMind AI</h1>
 
           <p>
-            Write, debug, analyze and compare algorithms
+            Write, debug and analyze programs
             in one intelligent coding workspace.
           </p>
         </div>
@@ -76,15 +76,6 @@
           </div>
         </div>
 
-        <div class="stat-card">
-          <span class="stat-icon">↗</span>
-
-          <div>
-            <h3>0</h3>
-            <p>Algorithms Compared</p>
-          </div>
-        </div>
-
       </div>
 
 
@@ -111,21 +102,6 @@
 
         </div>
 
-
-        <div class="quick-card" id="quickCompare">
-
-          <div class="quick-icon">⇄</div>
-
-          <h3>Algorithm Comparison</h3>
-
-          <p>
-            Compare two algorithms based on execution
-            time and complexity.
-          </p>
-
-          <button>Compare Algorithms →</button>
-
-        </div>
 
       </div>
 
@@ -436,87 +412,16 @@
   </section>
 
 
-    <!-- ================= COMPARE ================= -->
-
-<section id="compare" class="page-section">
-
-  <div class="dashboard-container">
-
-    <div class="page-header">
-      <div>
-        <p class="small-label">ALGORITHM ANALYSIS</p>
-        <h1>Algorithm Comparison</h1>
-        <p>Compare performance, time complexity and space complexity.</p>
-      </div>
-    </div>
-
-    <div class="compare-panel">
-
-      <div class="compare-selection">
+  <!-- ================= COMPARE ================= -->
+  <section id="compare" class="page-section">
+    <div class="dashboard-container">
+      <div class="page-header">
         <div>
-          <label for="compare-problem">Choose a problem to compare</label>
-          <select id="compare-problem">
-            <option value="reverse">Reverse a String</option>
-          </select>
+          <p class="small-label">ALGORITHM ANALYSIS</p>
+          <h1>Algorithm Comparison</h1>
+          <p>Compare theoretical time complexity for solved problems.</p>
         </div>
-
-        <span class="compare-status">✓ Sum of Two Numbers Passed</span>
       </div>
-
-      <div class="compare-heading">
-        <h2>Performance Comparison</h2>
-        <p>Sum of Two Numbers vs Reverse a String</p>
-      </div>
-
-      <div class="compare-graph">
-
-        <div class="graph-row">
-          <span class="graph-label">Sum of Two Numbers</span>
-          <div class="graph-track">
-            <div class="graph-bar constant-bar"></div>
-          </div>
-          <strong>O(1)</strong>
-        </div>
-
-        <div class="graph-row">
-          <span class="graph-label">Reverse a String</span>
-          <div class="graph-track">
-            <div class="graph-bar linear-bar"></div>
-          </div>
-          <strong>O(n)</strong>
-        </div>
-
-      </div>
-
-      <p class="graph-note">
-        Illustrative complexity growth. This graph does not represent measured execution time.
-      </p>
-
-      <div class="complexity-grid">
-
-        <div class="complexity-card">
-          <span>Sum of Two Numbers</span>
-          <h3>O(1)</h3>
-          <p>Time Complexity</p>
-          <h3>O(1)</h3>
-          <p>Space Complexity</p>
-        </div>
-
-        <div class="complexity-card">
-          <span>Reverse a String</span>
-          <h3>O(n)</h3>
-          <p>Time Complexity</p>
-          <h3>O(n)</h3>
-          <p>Space Complexity</p>
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
 
       <section class="benchmark-panel algorithm-compare-panel" aria-live="polite">
         <div class="panel-header">
@@ -543,9 +448,7 @@
         </div>
         <p class="benchmark-note">The graph shows theoretical Big O growth trends registered for each problem, not measured runtime or analysis of submitted code.</p>
       </section>
-
     </div>
-
   </section>
 
 
@@ -659,13 +562,6 @@
       .getElementById("quickCodeLab")
       .addEventListener("click", () => {
         showPage("codeLab");
-      });
-
-
-    document
-      .getElementById("quickCompare")
-      .addEventListener("click", () => {
-        showPage("compare");
       });
 
 
