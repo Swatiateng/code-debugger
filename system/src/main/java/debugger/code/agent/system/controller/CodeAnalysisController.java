@@ -14,7 +14,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://code-debugger-eight-delta.vercel.app"
+})
 public class CodeAnalysisController {
 
     private final CodeAnalysisService analysisService;

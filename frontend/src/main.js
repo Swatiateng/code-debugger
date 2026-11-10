@@ -2,6 +2,10 @@
 import "./style.css";
 import * as monaco from "monaco-editor";
 
+// Set VITE_API_BASE_URL in Vercel to the deployed backend URL.
+// An empty value keeps local Vite proxy requests working in development.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
 // ==================================================
 // DEFAULT PROGRAMS
 // ==================================================
@@ -67,7 +71,7 @@ let studentReasoningHistory = [];
 async function refreshAnalysisStats() {
   if (!programsAnalyzedCount || !errorsDetectedCount) return;
   try {
-    const response = await fetch("/api/analyze/stats");
+    const response = await fetch(`${API_BASE_URL}/api/analyze/stats`);
     if (!response.ok) throw new Error(`Stats request failed (HTTP ${response.status})`);
     const stats = await response.json();
     programsAnalyzedCount.textContent = String(stats.programsAnalyzed ?? 0);
@@ -328,7 +332,7 @@ analyzeButton.addEventListener("click", async () => {
         : null
     };
 
-    const response = await fetch("/api/analyze", {
+    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
       method: "POST",
 
       headers: {
@@ -401,7 +405,7 @@ aiResponseForm?.addEventListener("submit", async event => {
       code: editor.getValue(),
       input: programInput.value
     };
-    const response = await fetch("/api/analyze", {
+    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

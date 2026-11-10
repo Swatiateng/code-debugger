@@ -8,7 +8,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/performance-charts")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {
+        "http://localhost:5173",
+        "https://code-debugger-eight-delta.vercel.app"
+})
 public class PerformanceChartController {
     private final ChartGenerationService chartService;
 
