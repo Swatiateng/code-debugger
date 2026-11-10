@@ -1144,6 +1144,18 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+// Best-effort focus-loss detection. This can catch switching to another app,
+// such as a terminal, when the browser window loses focus but the page remains
+// visible (for example, with another window floating over it).
+window.addEventListener("blur", () => {
+  if (!selectedProblem || !document.fullscreenElement) return;
+
+  focusExitMessage = "Focus Mode exited because you switched away from CodeDebugger.";
+  document.exitFullscreen().catch(error => {
+    console.error("Could not exit fullscreen after window lost focus:", error);
+  });
+});
+
 // ==================================================
 // CODE LAB NAVIGATION
 // ==================================================
