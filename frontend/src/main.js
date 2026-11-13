@@ -6,6 +6,51 @@ import * as monaco from "monaco-editor";
 // An empty value keeps local Vite proxy requests working in development.
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
+const dailyMotivations = [
+  {
+    quote: "Everybody should learn how to program a computer. It teaches you how to think.",
+    author: "Steve Jobs · Apple co-founder",
+    source: "https://allaboutstevejobs.com/videos/misc/triumph_of_the_nerds_interview_1995"
+  },
+  {
+    quote: "The best way to prepare is to write programs, and to study great programs that other people have written.",
+    author: "Bill Gates · Microsoft co-founder",
+    source: "https://programmersatwork.wordpress.com/bill-gates-1986/"
+  },
+  {
+    quote: "You learn the most when you challenge yourself.",
+    author: "Mark Zuckerberg · Facebook co-founder",
+    source: "https://www.thecrimson.com/article/2005/12/8/zuckerberg-in-sandals-chats-up-cs50/"
+  },
+  {
+    quote: "To invent, you have to experiment.",
+    author: "Jeff Bezos · Amazon founder",
+    source: "https://www.aboutamazon.com/news/policy-news-views/statement-by-jeff-bezos-to-the-u-s-house-committee-on-the-judiciary"
+  }
+];
+
+function renderDailyMotivation() {
+  const now = new Date();
+  const dayNumber = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
+  const motivation = dailyMotivations[dayNumber % dailyMotivations.length];
+  const hour = now.getHours();
+  const greeting = document.getElementById("dashboard-greeting");
+  if (greeting) greeting.textContent = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  const quote = document.getElementById("daily-motivation-quote");
+  const author = document.getElementById("daily-motivation-author");
+  const source = document.getElementById("daily-motivation-source");
+  const date = document.getElementById("motivation-date");
+  if (quote) quote.textContent = `“${motivation.quote}”`;
+  if (author) author.textContent = motivation.author;
+  if (source) source.href = motivation.source;
+  if (date) {
+    date.dateTime = now.toISOString().slice(0, 10);
+    date.textContent = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(now);
+  }
+}
+
+renderDailyMotivation();
+
 // ==================================================
 // DEFAULT PROGRAMS
 // ==================================================
@@ -101,6 +146,30 @@ const editor = monaco.editor.create(editorElement, {
   roundedSelection: true,
   padding: {
     top: 12
+  }
+});
+
+// Give hovered buttons a small magnetic drift toward the pointer.
+document.addEventListener("pointermove", event => {
+  const button = event.target.closest?.("button:not(:disabled)");
+  if (!button) return;
+  const rect = button.getBoundingClientRect();
+  const x = (event.clientX - rect.left) / rect.width - 0.5;
+  const y = (event.clientY - rect.top) / rect.height - 0.5;
+  if (button.classList.contains("nav-link")) {
+    button.style.setProperty("--button-shift-x", `${(x * 12).toFixed(1)}px`);
+    button.style.setProperty("--button-shift-y", `${(y * 8).toFixed(1)}px`);
+  } else {
+    button.style.setProperty("--button-shift-x", `${(x * 4).toFixed(1)}px`);
+    button.style.setProperty("--button-shift-y", `${(y * 4).toFixed(1)}px`);
+  }
+}, { passive: true });
+
+document.addEventListener("pointerout", event => {
+  const button = event.target.closest?.("button");
+  if (button && !button.contains(event.relatedTarget)) {
+    button.style.removeProperty("--button-shift-x");
+    button.style.removeProperty("--button-shift-y");
   }
 });
 
@@ -365,7 +434,11 @@ analyzeButton.addEventListener("click", async () => {
     displayTestCases(data.testCases);
     if (selectedProblem?.complexity && data.testCases?.length
       && data.testCases.every(testCase => testCase.passed)) {
-      rememberSolvedProblem(selectedProblem.id);
+      rememberSolvedProblem(selectedProblem.id, {
+        language,
+        code,
+        output: resultBox.textContent
+      });
       populateSolvedProblemSelects();
     }
     displayAIAnalysis(data);
@@ -558,18 +631,22 @@ function complexityValue(growth, n) {
   }
 }
 
-function renderComplexityGraph(container, labelsContainer, comparedProblems) {
+function renderComplexityGraph(container, labelsContainer, comparedProblems, metric = "time") {
+  const isSpace = metric === "space";
+  const growthKey = isSpace ? "spaceGrowth" : "timeGrowth";
+  const complexityKey = isSpace ? "spaceComplexity" : "timeComplexity";
+  const metricLabel = isSpace ? "space" : "time";
   const series = comparedProblems.map((problem, index) => ({
     problem,
     color: index === 0 ? "#a78bfa" : "#22d3ee"
   }));
   const sizes = [10, 100, 1000, 10000];
   const width = 620;
-  const height = 280;
-  const margin = { top: 18, right: 20, bottom: 46, left: 52 };
+  const height = 330;
+  const margin = { top: 22, right: 24, bottom: 70, left: 64 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const values = series.flatMap(item => sizes.map(size => complexityValue(item.problem.complexity.timeGrowth, size)));
+  const values = series.flatMap(item => sizes.map(size => complexityValue(item.problem.complexity[growthKey], size)));
   const minLog = Math.min(...values.map(value => Math.log10(value)));
   const maxLog = Math.max(...values.map(value => Math.log10(value)));
   const x = index => margin.left + (index / (sizes.length - 1)) * plotWidth;
@@ -578,52 +655,145 @@ function renderComplexityGraph(container, labelsContainer, comparedProblems) {
   const svg = document.createElementNS(ns, "svg");
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", `Theoretical time complexity comparison for ${comparedProblems.map(problem => problem.title).join(" and ")}`);
+  svg.setAttribute("aria-label", `Theoretical ${metricLabel} complexity comparison for ${comparedProblems.map(problem => problem.title).join(" and ")}`);
 
-  const axis = document.createElementNS(ns, "path");
-  axis.setAttribute("d", `M ${margin.left} ${margin.top} V ${margin.top + plotHeight} H ${width - margin.right}`);
-  axis.setAttribute("class", "benchmark-axis");
-  svg.appendChild(axis);
+  const arrowMarkerId = `${container.id || "complexity"}-axis-arrowhead`;
+  const defs = document.createElementNS(ns, "defs");
+  const arrowMarker = document.createElementNS(ns, "marker");
+  arrowMarker.setAttribute("id", arrowMarkerId);
+  arrowMarker.setAttribute("viewBox", "0 0 10 10");
+  arrowMarker.setAttribute("refX", "8");
+  arrowMarker.setAttribute("refY", "5");
+  arrowMarker.setAttribute("markerWidth", "7");
+  arrowMarker.setAttribute("markerHeight", "7");
+  arrowMarker.setAttribute("orient", "auto");
+  const arrowShape = document.createElementNS(ns, "path");
+  arrowShape.setAttribute("d", "M 0 0 L 10 5 L 0 10 Z");
+  arrowShape.setAttribute("fill", "#d9edca");
+  arrowMarker.appendChild(arrowShape);
+  defs.appendChild(arrowMarker);
+  svg.appendChild(defs);
+
+  const xAxis = document.createElementNS(ns, "path");
+  xAxis.setAttribute("d", `M ${margin.left} ${margin.top + plotHeight} H ${width - margin.right}`);
+  xAxis.setAttribute("class", "benchmark-axis");
+  xAxis.setAttribute("marker-end", `url(#${arrowMarkerId})`);
+  svg.appendChild(xAxis);
+  const yAxis = document.createElementNS(ns, "path");
+  yAxis.setAttribute("d", `M ${margin.left} ${margin.top + plotHeight} V ${margin.top}`);
+  yAxis.setAttribute("class", "benchmark-axis");
+  yAxis.setAttribute("marker-end", `url(#${arrowMarkerId})`);
+  svg.appendChild(yAxis);
 
   sizes.forEach((size, index) => {
     const label = document.createElementNS(ns, "text");
     label.textContent = size.toLocaleString();
     label.setAttribute("x", x(index));
-    label.setAttribute("y", height - 20);
+    label.setAttribute("y", margin.top + plotHeight + 22);
     label.setAttribute("text-anchor", "middle");
     label.setAttribute("class", "benchmark-label");
     svg.appendChild(label);
   });
 
+  const xAxisLabel = document.createElementNS(ns, "text");
+  xAxisLabel.textContent = "Input size, n (log scale)";
+  xAxisLabel.setAttribute("x", margin.left + plotWidth / 2);
+  xAxisLabel.setAttribute("y", height - 12);
+  xAxisLabel.setAttribute("text-anchor", "middle");
+  xAxisLabel.setAttribute("class", "benchmark-axis-label");
+  svg.appendChild(xAxisLabel);
+
+  const yAxisLabel = document.createElementNS(ns, "text");
+  yAxisLabel.textContent = isSpace ? "Estimated extra space (log scale)" : "Theoretical operations (log scale)";
+  const yAxisCenter = margin.top + plotHeight / 2;
+  yAxisLabel.setAttribute("x", "18");
+  yAxisLabel.setAttribute("y", yAxisCenter);
+  yAxisLabel.setAttribute("text-anchor", "middle");
+  yAxisLabel.setAttribute("class", "benchmark-axis-label");
+  yAxisLabel.setAttribute("transform", `rotate(-90 18 ${yAxisCenter})`);
+  svg.appendChild(yAxisLabel);
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "complexity-line-tooltip";
+  tooltip.setAttribute("role", "tooltip");
+  tooltip.hidden = true;
+  const showLineTooltip = (problem, event) => {
+    tooltip.textContent = problem.title + " | " + problem.complexity[complexityKey];
+    tooltip.hidden = false;
+    if (event?.clientX != null) {
+      const bounds = container.getBoundingClientRect();
+      tooltip.style.left = `${Math.max(8, Math.min(bounds.width - 230, event.clientX - bounds.left + 14))}px`;
+      tooltip.style.top = `${Math.max(48, Math.min(bounds.height - 8, event.clientY - bounds.top - 12))}px`;
+      tooltip.style.transform = "translateY(-100%)";
+    } else {
+      tooltip.style.left = "50%";
+      tooltip.style.top = "8px";
+      tooltip.style.transform = "translateX(-50%)";
+    }
+  };
+
   series.forEach(({ problem, color }) => {
-    const coordinates = sizes.map((size, index) => `${x(index)},${y(complexityValue(problem.complexity.timeGrowth, size))}`);
-    const line = document.createElementNS(ns, "polyline");
-    line.setAttribute("points", coordinates.join(" "));
+    const points = sizes.map((size, index) => ({
+      x: x(index),
+      y: y(complexityValue(problem.complexity[growthKey], size))
+    }));
+    const curvePath = points.reduce((path, point, index) => {
+      if (index === 0) return `M ${point.x} ${point.y}`;
+      const previous = points[index - 2] || points[index - 1];
+      const start = points[index - 1];
+      const end = point;
+      const next = points[index + 1] || end;
+      const control1X = start.x + (end.x - previous.x) / 6;
+      const control1Y = start.y + (end.y - previous.y) / 6;
+      const control2X = end.x - (next.x - start.x) / 6;
+      const control2Y = end.y - (next.y - start.y) / 6;
+      return `${path} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${end.x} ${end.y}`;
+    }, "");
+    const line = document.createElementNS(ns, "path");
+    line.setAttribute("d", curvePath);
     line.setAttribute("fill", "none");
     line.setAttribute("stroke", color);
-    line.setAttribute("stroke-width", "3");
+    line.setAttribute("stroke-width", "3.5");
+    line.setAttribute("stroke-linecap", "round");
+    line.setAttribute("stroke-linejoin", "round");
+    line.setAttribute("class", "complexity-curve");
     svg.appendChild(line);
-    sizes.forEach((size, index) => {
+    const hitTarget = document.createElementNS(ns, "path");
+    hitTarget.setAttribute("d", curvePath);
+    hitTarget.setAttribute("class", "complexity-curve-hit-target");
+    hitTarget.setAttribute("tabindex", "0");
+    hitTarget.setAttribute("aria-label", `${problem.title}, ${problem.complexity[complexityKey]}`);
+    const pathTitle = document.createElementNS(ns, "title");
+    pathTitle.textContent = problem.title + " | " + problem.complexity[complexityKey];
+    hitTarget.appendChild(pathTitle);
+    hitTarget.addEventListener("pointerenter", event => showLineTooltip(problem, event));
+    hitTarget.addEventListener("pointermove", event => showLineTooltip(problem, event));
+    hitTarget.addEventListener("pointerleave", () => { tooltip.hidden = true; });
+    hitTarget.addEventListener("focus", () => showLineTooltip(problem));
+    hitTarget.addEventListener("blur", () => { tooltip.hidden = true; });
+    if (problem.complexity[growthKey] !== "n") sizes.forEach((size, index) => {
       const point = document.createElementNS(ns, "circle");
       point.setAttribute("cx", x(index));
-      point.setAttribute("cy", y(complexityValue(problem.complexity.timeGrowth, size)));
+      point.setAttribute("cy", y(complexityValue(problem.complexity[growthKey], size)));
       point.setAttribute("r", "4");
       point.setAttribute("fill", color);
       const title = document.createElementNS(ns, "title");
-      title.textContent = `${problem.title} · n=${size} · ${problem.complexity.timeComplexity}`;
+      title.textContent = problem.title + " | n=" + size + " | " + problem.complexity[complexityKey];
       point.appendChild(title);
       svg.appendChild(point);
     });
+    svg.appendChild(hitTarget);
   });
 
-  container.replaceChildren(svg);
+  container.classList.add("complexity-chart-tooltip-host");
+  container.replaceChildren(svg, tooltip);
   labelsContainer.replaceChildren(...series.map(({ problem, color }) => {
     const label = document.createElement("span");
     label.className = "complexity-legend-item";
     const swatch = document.createElement("i");
     swatch.style.backgroundColor = color;
     const text = document.createElement("span");
-    text.textContent = `${problem.title}: ${problem.complexity.timeComplexity}`;
+    text.textContent = `${problem.title}: ${problem.complexity[complexityKey]}`;
     label.append(swatch, text);
     return label;
   }));
@@ -679,7 +849,14 @@ compareAlgorithmComplexityButton?.addEventListener("click", () => {
   renderComplexityGraph(
     document.getElementById("time-complexity-chart"),
     document.getElementById("time-complexity-labels"),
-    comparedProblems
+    comparedProblems,
+    "time"
+  );
+  renderComplexityGraph(
+    document.getElementById("space-complexity-chart"),
+    document.getElementById("space-complexity-labels"),
+    comparedProblems,
+    "space"
   );
   benchmarkSummary.textContent = comparedProblems.length === 2
     ? `${first.title} (${first.complexity.timeComplexity}) vs ${second.title} (${second.complexity.timeComplexity})`
@@ -820,7 +997,10 @@ int main() {
 
 const recentActivityStorageKey = "codemind-recent-problems";
 const solvedProblemsStorageKey = "codemind-solved-problems";
+const solvedProblemHistoryStorageKey = "codemind-solved-problem-history";
 const recentActivityList = document.getElementById("recent-activity-list");
+const solvedHistoryList = document.getElementById("solved-problem-history");
+const solvedHistoryCount = document.getElementById("solved-history-count");
 
 function readSolvedProblemIds() {
   try {
@@ -834,15 +1014,122 @@ function readSolvedProblemIds() {
   }
 }
 
-function rememberSolvedProblem(problemId) {
+function readSolvedProblemHistory() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(solvedProblemHistoryStorageKey) || "[]");
+    return Array.isArray(saved) ? saved.filter(item => item && typeof item.id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberSolvedProblem(problemId, details = {}) {
   try {
     const solvedIds = new Set(readSolvedProblemIds());
     solvedIds.add(problemId);
     localStorage.setItem(solvedProblemsStorageKey, JSON.stringify([...solvedIds]));
+    const history = readSolvedProblemHistory();
+    const previous = history.find(item => item.id === problemId);
+    const record = {
+      id: problemId,
+      solvedAt: previous?.solvedAt || new Date().toISOString(),
+      lastSolvedAt: new Date().toISOString(),
+      language: details.language || previous?.language || "",
+      code: details.code || previous?.code || "",
+      output: details.output || previous?.output || ""
+    };
+    localStorage.setItem(solvedProblemHistoryStorageKey, JSON.stringify([
+      record,
+      ...history.filter(item => item.id !== problemId)
+    ]));
+    renderSolvedProblemHistory();
   } catch {
     // Keep analysis working when browser storage is unavailable.
   }
 }
+
+function renderSolvedProblemHistory() {
+  if (!solvedHistoryList) return;
+  const history = readSolvedProblemHistory();
+  const solvedIds = readSolvedProblemIds();
+  const records = solvedIds.map(id => ({
+    ...(history.find(item => item.id === id) || { id }),
+    problem: problems.find(problem => problem.id === id)
+  })).filter(item => item.problem)
+    .sort((a, b) => new Date(b.solvedAt || 0) - new Date(a.solvedAt || 0));
+
+  if (solvedHistoryCount) solvedHistoryCount.textContent = String(records.length);
+  solvedHistoryList.replaceChildren();
+  if (!records.length) {
+    const empty = document.createElement("div");
+    empty.className = "solved-history-empty";
+    const title = document.createElement("h3");
+    title.textContent = "Your first solve is waiting";
+    const copy = document.createElement("p");
+    copy.textContent = "Complete every test case in a problem and it will be saved here with its explanation and your solution.";
+    empty.append(title, copy);
+    solvedHistoryList.appendChild(empty);
+    return;
+  }
+
+  records.forEach(({ id, solvedAt, language, code, problem }) => {
+    const card = document.createElement("article");
+    card.className = "solved-history-card";
+    const header = document.createElement("div");
+    header.className = "solved-history-card-header";
+    const name = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = problem.title;
+    const meta = document.createElement("p");
+    const parsedDate = solvedAt ? new Date(solvedAt) : null;
+    const dateLabel = parsedDate && !Number.isNaN(parsedDate.getTime())
+      ? `Solved ${parsedDate.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`
+      : "Previously solved";
+    meta.textContent = `${problem.difficulty} · ${dateLabel}${language ? ` · ${language}` : ""}`;
+    name.append(title, meta);
+    const badge = document.createElement("span");
+    badge.className = "solved-history-badge";
+    badge.textContent = "✓ Solved";
+    header.append(name, badge);
+
+    const explanation = document.createElement("p");
+    explanation.className = "solved-history-explanation";
+    explanation.textContent = problem.description;
+    const specs = document.createElement("div");
+    specs.className = "solved-history-specs";
+    const input = document.createElement("p");
+    input.textContent = `Input: ${problem.input}`;
+    const output = document.createElement("p");
+    output.textContent = `Expected output: ${problem.output}`;
+    specs.append(input, output);
+    if (problem.complexity) {
+      const time = document.createElement("p");
+      time.textContent = `Time complexity: ${problem.complexity.timeComplexity}`;
+      const space = document.createElement("p");
+      space.textContent = `Space complexity: ${problem.complexity.spaceComplexity}`;
+      specs.append(time, space);
+    }
+    card.append(header, explanation, specs);
+
+    if (code) {
+      const solution = document.createElement("details");
+      solution.className = "solved-history-solution";
+      const summary = document.createElement("summary");
+      summary.textContent = "View my submitted solution";
+      const codeBlock = document.createElement("pre");
+      const codeText = document.createElement("code");
+      codeText.textContent = code;
+      codeBlock.appendChild(codeText);
+      solution.append(summary, codeBlock);
+      card.appendChild(solution);
+    }
+    solvedHistoryList.appendChild(card);
+  });
+}
+
+document.querySelectorAll('[data-page="history"], [data-dashboard-page="history"]')
+  .forEach(link => link.addEventListener("click", renderSolvedProblemHistory));
+renderSolvedProblemHistory();
 
 function readRecentProblemIds() {
   try {
