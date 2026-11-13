@@ -36,16 +36,15 @@
 
     <div class="dashboard-container">
 
-      <div class="welcome-section">
+      <div class="welcome-section dashboard-hero">
 
         <div>
-          <p class="small-label">AI-POWERED DEVELOPMENT WORKSPACE</p>
+          <p class="small-label">YOUR CODING WORKSPACE</p>
 
-          <h1>Welcome to CodeMind AI</h1>
+          <h1>Good <span id="dashboard-greeting">day</span>, ready to build?</h1>
 
           <p>
-            Write, debug and analyze programs
-            in one intelligent coding workspace.
+            Practice one problem at a time, understand your mistakes, and keep improving.
           </p>
         </div>
 
@@ -56,7 +55,24 @@
       </div>
 
 
-      <div class="stats-grid">
+      <aside class="daily-motivation" aria-label="Daily programming motivation">
+        <div class="motivation-topline">
+          <p class="small-label">DAILY MOTIVATION</p>
+          <time id="motivation-date"></time>
+        </div>
+        <blockquote id="daily-motivation-quote"></blockquote>
+        <div class="motivation-attribution">
+          <cite id="daily-motivation-author"></cite>
+          <a id="daily-motivation-source" href="#" target="_blank" rel="noopener noreferrer">Read source</a>
+        </div>
+      </aside>
+
+      <div class="dashboard-section-heading">
+        <div><p class="small-label">YOUR LEARNING SNAPSHOT</p><h2>Progress at a glance</h2></div>
+        <span class="snapshot-caption">A little progress every day adds up.</span>
+      </div>
+
+      <div class="stats-grid dashboard-stats">
 
         <div class="stat-card">
           <span class="stat-icon">⌘</span>
@@ -79,13 +95,12 @@
       </div>
 
 
-      <div class="section-title">
-        <p class="small-label">QUICK START</p>
-        <h2>Choose what you want to do</h2>
+      <div class="dashboard-section-heading dashboard-next-heading">
+        <div><p class="small-label">PICK UP WHERE YOU WANT</p><h2>What would you like to work on?</h2></div>
       </div>
 
 
-      <div class="quick-grid">
+      <div class="quick-grid dashboard-actions-grid">
 
         <div class="quick-card" id="quickCodeLab">
 
@@ -102,15 +117,30 @@
 
         </div>
 
+        <div class="quick-card dashboard-action-card">
+          <div class="quick-icon problems-icon" aria-hidden="true">P</div>
+          <p class="dashboard-card-kicker">PRACTICE</p>
+          <h3>Problem Library</h3>
+          <p>Choose a challenge, work through the examples, and test your solution.</p>
+          <button type="button" data-dashboard-page="problems">Browse problems</button>
+        </div>
+
+        <div class="quick-card dashboard-action-card">
+          <div class="quick-icon compare-icon" aria-hidden="true">A</div>
+          <p class="dashboard-card-kicker">REFLECT</p>
+          <h3>Compare Algorithms</h3>
+          <p>Review time and space complexity trends for problems you have solved.</p>
+          <button type="button" data-dashboard-page="compare">View comparison</button>
+        </div>
 
       </div>
 
 
-      <div class="activity-section">
+      <div class="activity-section dashboard-activity">
 
-        <div class="section-title">
-          <p class="small-label">RECENT ACTIVITY</p>
-          <h2>Your coding activity</h2>
+        <div class="dashboard-section-heading">
+          <div><p class="small-label">RECENT ACTIVITY</p><h2>Your recent work</h2></div>
+          <button type="button" class="activity-history-link" data-dashboard-page="history">View history</button>
         </div>
 
         <div id="recent-activity-list" class="recent-activity-list" aria-live="polite">
@@ -289,7 +319,7 @@
 
           <!-- CODE EDITOR -->
 
-          <div class="editor-panel">
+          <div class="editor-panel" tabindex="0" aria-label="Code editor panel">
 
             <div class="panel-header">
 
@@ -331,7 +361,7 @@
 
           <!-- EXECUTION RESULT -->
 
-          <div class="output-panel">
+          <div class="output-panel" tabindex="0" aria-label="Execution output panel">
 
             <div class="panel-header">
 
@@ -359,7 +389,7 @@
 
         <!-- RIGHT COLUMN: AI DEBUGGER -->
 
-        <div class="ai-debugger-panel">
+        <div class="ai-debugger-panel" tabindex="0" aria-label="AI debugger panel">
 
           <div class="panel-header">
 
@@ -425,7 +455,7 @@
 
       <section class="benchmark-panel algorithm-compare-panel" aria-live="polite">
         <div class="panel-header">
-          <div><span class="panel-dot"></span><strong>Compare Time Complexity</strong></div>
+          <div><span class="panel-dot"></span><strong>Compare Time &amp; Space Complexity</strong></div>
           <span id="benchmark-summary">Choose a solved problem</span>
         </div>
         <div class="benchmark-controls algorithm-compare-controls">
@@ -445,8 +475,13 @@
             <div id="time-complexity-labels" class="complexity-labels"></div>
             <div id="time-complexity-chart" class="benchmark-chart"></div>
           </section>
+          <section class="complexity-graph-card">
+            <h3>Space Complexity</h3>
+            <div id="space-complexity-labels" class="complexity-labels"></div>
+            <div id="space-complexity-chart" class="benchmark-chart"></div>
+          </section>
         </div>
-        <p class="benchmark-note">The graph shows theoretical Big O growth trends registered for each problem, not measured runtime or analysis of submitted code.</p>
+        <p class="benchmark-note">These graphs show theoretical Big O trends for time and space, not measured runtime or memory use from your submitted code.</p>
       </section>
     </div>
   </section>
@@ -463,11 +498,11 @@
         <div>
           <p class="small-label">YOUR ACTIVITY</p>
 
-          <h1>History</h1>
+          <h1>Solved problems</h1>
 
           <p>
-            View your previously analyzed programs
-            and algorithm comparisons.
+            Review the problems you cleared, understand what each one asked,
+            and revisit the solution you submitted.
           </p>
 
         </div>
@@ -475,22 +510,16 @@
       </div>
 
 
-      <div class="coming-card">
-
-        <div class="coming-icon">◷</div>
-
-        <h2>No History Yet</h2>
-
-        <p>
-          Your analysis history will appear here
-          after connecting the backend database.
-        </p>
-
-        <span class="module-status">
-          Waiting for backend integration
-        </span>
-
-      </div>
+      <section class="solved-history-panel" aria-label="Solved problem history">
+        <div class="solved-history-heading">
+          <div>
+            <p class="small-label">YOUR PROGRESS</p>
+            <h2><span id="solved-history-count">0</span> problems solved</h2>
+          </div>
+          <p>Solutions are saved in this browser when every test case passes.</p>
+        </div>
+        <div id="solved-problem-history" class="solved-history-list" aria-live="polite"></div>
+      </section>
 
     </div>
 
@@ -564,6 +593,10 @@
         showPage("codeLab");
       });
 
+
+    document.querySelectorAll("[data-dashboard-page]").forEach(button => {
+      button.addEventListener("click", () => showPage(button.dataset.dashboardPage));
+    });
 
     showPage("dashboard");
 
