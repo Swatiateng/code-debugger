@@ -8,6 +8,7 @@ const express = require('express');
 const app = express();
 const PORT = Number(process.env.PORT) || 10000;
 const EXECUTION_TIMEOUT_MS = 5000;
+const COMPILATION_TIMEOUT_MS = 20000;
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 const MAX_CODE_BYTES = 256 * 1024;
 const SUPPORTED_LANGUAGES = new Set(['python', 'cpp', 'java']);
@@ -96,34 +97,36 @@ function runProcess(command, args, cwd, deadline, input = '') {
 }
 
 async function execute(language, code, input, workDir) {
-  const deadline = Date.now() + EXECUTION_TIMEOUT_MS;
   const started = Date.now();
   if (language === 'python') {
     await fs.writeFile(path.join(workDir, 'main.py'), code, { mode: 0o600 });
-    const result = await runProcess('python3', ['-I', '-B', 'main.py'], workDir, deadline, input);
+    const result = await runProcess('python3', ['-I', '-B', 'main.py'], workDir,
+      Date.now() + EXECUTION_TIMEOUT_MS, input);
     return { ...result, phase: 'run', durationMillis: Date.now() - started };
   }
   let compilation;
   let executable;
   let javaClassName;
+  const compilationDeadline = Date.now() + COMPILATION_TIMEOUT_MS;
   if (language === 'cpp') {
     await fs.writeFile(path.join(workDir, 'main.cpp'), code, { mode: 0o600 });
-    compilation = await runProcess('g++', ['-std=c++17', '-O0', '-pipe', 'main.cpp', '-o', 'program'], workDir, deadline);
+    compilation = await runProcess('g++', ['-std=c++17', '-O0', '-pipe', 'main.cpp', '-o', 'program'], workDir, compilationDeadline);
     executable = path.join(workDir, 'program');
   } else {
     const classMatch = code.match(/\bpublic\s+(?:(?:abstract|final)\s+)?class\s+([A-Za-z_$][\w$]*)/)
       || code.match(/\bclass\s+(Main)\b/);
     javaClassName = classMatch?.[1] || 'Main';
     await fs.writeFile(path.join(workDir, `${javaClassName}.java`), code, { mode: 0o600 });
-    compilation = await runProcess('javac', ['-encoding', 'UTF-8', `${javaClassName}.java`], workDir, deadline);
+    compilation = await runProcess('javac', ['-encoding', 'UTF-8', `${javaClassName}.java`], workDir, compilationDeadline);
     executable = null;
   }
   if (compilation.timedOut || compilation.outputExceeded || compilation.exitCode !== 0) {
     return { ...compilation, phase: 'compile', durationMillis: Date.now() - started };
   }
   const result = language === 'cpp'
-    ? await runProcess(executable, [], workDir, deadline, input)
-    : await runProcess('java', ['-Xms16m', '-Xmx128m', '-cp', workDir, javaClassName], workDir, deadline, input);
+    ? await runProcess(executable, [], workDir, Date.now() + EXECUTION_TIMEOUT_MS, input)
+    : await runProcess('java', ['-Xms16m', '-Xmx128m', '-cp', workDir, javaClassName], workDir,
+      Date.now() + EXECUTION_TIMEOUT_MS, input);
   return { ...result, phase: 'run', durationMillis: Date.now() - started };
 }
 
