@@ -5,9 +5,6 @@ import debugger.code.agent.system.model.ExecutionResult;
 import debugger.code.agent.system.model.Language;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,17 +21,14 @@ public class PythonLanguageAnalyzer implements LanguageAnalyzer {
 
     @Override
     public ExecutionResult analyze(String source, String input) {
-        try {
-            // Keep the submitted file separate from the Spring application files.
-            Path directory = Files.createTempDirectory("code-analysis-python-");
-            Files.writeString(directory.resolve("main.py"), source);
-            var run = execution.run(List.of("python", "main.py"), directory, input);
-            boolean hasError = run.exitCode() != 0 || !run.finished();
-            return new ExecutionResult(true, run.finished() && !hasError, !run.finished(), run.exitCode(), run.stdout(), run.stderr(), run.durationMillis(), hasError ? diagnostics(run.stderr(), run.finished() ? "RUNTIME" : "TIMEOUT") : List.of());
-        } catch (IOException exception) {
-            // This happens, for example, if a temporary source file cannot be created.
-            return new ExecutionResult(false, false, false, -1, "", exception.getMessage(), 0, List.of(execution.unavailable("Python interpreter")));
-        }
+        var run = execution.runSource(debugger.code.agent.system.model.Language.PYTHON, source, input);
+        boolean available = !run.phase().equals("unavailable");
+        boolean hasError = run.exitCode() != 0 || !run.finished();
+        List<Diagnostic> diagnostics = run.phase().equals("unavailable")
+                ? List.of(execution.unavailable(run.stderr()))
+                : hasError ? diagnostics(run.stderr(), run.timedOut() ? "TIMEOUT" : "RUNTIME") : List.of();
+        return new ExecutionResult(available, available && run.finished() && !hasError, run.timedOut(), run.exitCode(),
+                run.stdout(), run.stderr(), run.durationMillis(), diagnostics);
     }
 
     private List<Diagnostic> diagnostics(String errorText, String type) {
