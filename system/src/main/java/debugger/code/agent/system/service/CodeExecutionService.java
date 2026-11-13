@@ -5,146 +5,68 @@ import debugger.code.agent.system.model.Diagnostic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class CodeExecutionService {
 
-    @Value("${app.execution.docker.image}")
-    private String dockerImage;
+    private static final ParameterizedTypeReference<Map<String, Object>> RESPONSE_TYPE =
+            new ParameterizedTypeReference<>() { };
 
-    @Value("${app.execution.docker.timeout-seconds:5}")
-    private long timeoutSeconds;
+    @Value("${app.execution.runner.url:}")
+    private String runnerUrl;
 
-    @Value("${app.execution.docker.memory:256m}")
-    private String memory;
+    @Value("${app.execution.runner.secret:}")
+    private String sandboxSecret;
 
-    @Value("${app.execution.docker.cpus:1}")
-    private String cpus;
-
-    public ProcessResult run(List<String> command, Path directory, String input) {
-
-        long started = System.nanoTime();
-        String containerName = "code-run-" +
-                UUID.randomUUID().toString().replace("-", "");
-
-        List<String> dockerCommand = new ArrayList<>();
-
-        dockerCommand.addAll(List.of(
-                "docker", "run",
-                "--rm",
-                "--name", containerName,
-                "--network", "none",
-                "--memory", memory,
-                "--memory-swap", memory,
-                "--cpus", cpus,
-                "--pids-limit", "64",
-                "--cap-drop", "ALL",
-                "--security-opt", "no-new-privileges",
-                "--read-only",
-                "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
-                "--user", "10001:10001",
-                "--workdir", "/workspace",
-                "--mount",
-                "type=bind,source=" + directory.toAbsolutePath() +
-                        ",target=/workspace",
-                "-i",
-                dockerImage
-        ));
-
-        // Translate host-specific paths and executable names.
-        List<String> containerCommand = new ArrayList<>();
-
-        for (String argument : command) {
-            if (argument.equals(directory.toString()) ||
-                    argument.equals(directory.toAbsolutePath().toString())) {
-                containerCommand.add("/workspace");
-            } else if (argument.equals("python")) {
-                containerCommand.add("python3");
-            } else if (argument.equals("program.exe")) {
-                containerCommand.add("./program");
-            } else {
-                containerCommand.add(argument);
-            }
+    public ProcessResult runSource(debugger.code.agent.system.model.Language language, String source, String input) {
+        if (runnerUrl == null || runnerUrl.isBlank() || sandboxSecret == null || sandboxSecret.isBlank()) {
+            return new ProcessResult(true, -1, "", "Sandbox runner is not configured. Set SANDBOX_URL and SANDBOX_SECRET.", "unavailable", 0, false);
         }
-
-        dockerCommand.addAll(containerCommand);
-
-        Process process = null;
-
+        long started = System.nanoTime();
         try {
-            process = new ProcessBuilder(dockerCommand).start();
-
-            if (input != null && !input.isEmpty()) {
-                process.getOutputStream().write(
-                        input.getBytes(StandardCharsets.UTF_8));
+            Map<String, Object> request = new HashMap<>();
+            request.put("language", language.name().toLowerCase());
+            request.put("code", source);
+            request.put("input", input == null ? "" : input);
+            SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+            requestFactory.setConnectTimeout(10_000);
+            requestFactory.setReadTimeout(110_000);
+            Map<String, Object> response = RestClient.builder()
+                    .baseUrl(runnerUrl.replaceAll("/+$", ""))
+                    .requestFactory(requestFactory)
+                    .defaultHeader("x-sandbox-secret", sandboxSecret)
+                    .build()
+                    .post().uri("/execute").body(request).retrieve().body(RESPONSE_TYPE);
+            if (response == null) {
+                return new ProcessResult(true, -1, "", "Sandbox runner returned an empty response.", "unavailable", 0, false);
             }
-
-            process.getOutputStream().close();
-
-            boolean finished = process.waitFor(
-                    Duration.ofSeconds(timeoutSeconds).toMillis(),
-                    TimeUnit.MILLISECONDS);
-
-            if (!finished) {
-                process.destroyForcibly();
-                process.waitFor();
-
-                // Remove the container if execution exceeded the timeout.
-                new ProcessBuilder(
-                        "docker", "rm", "-f", containerName
-                ).start().waitFor(3, TimeUnit.SECONDS);
-            }
-
-            String stdout = new String(
-                    process.getInputStream().readAllBytes(),
-                    StandardCharsets.UTF_8);
-
-            String stderr = new String(
-                    process.getErrorStream().readAllBytes(),
-                    StandardCharsets.UTF_8);
-
             return new ProcessResult(
-                    finished,
-                    finished ? process.exitValue() : -1,
-                    stdout,
-                    finished ? stderr : "Execution timed out.",
-                    TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - started)
+                    !Boolean.TRUE.equals(response.get("timedOut")),
+                    integer(response.get("exitCode"), -1),
+                    string(response.get("stdout")),
+                    string(response.get("stderr")),
+                    string(response.get("phase")),
+                    longValue(response.get("durationMillis"), elapsedMillis(started)),
+                    Boolean.TRUE.equals(response.get("timedOut"))
             );
-
-        } catch (IOException e) {
-            if (process != null) {
-                process.destroyForcibly();
-            }
-
-            return new ProcessResult(
-                    true, -1, "", e.getMessage(),
-                    TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - started)
-            );
-
-        } catch (InterruptedException e) {
-            if (process != null) {
-                process.destroyForcibly();
-            }
-
-            Thread.currentThread().interrupt();
-
-            return new ProcessResult(
-                    false, -1, "", "Execution interrupted",
-                    TimeUnit.NANOSECONDS.toMillis(
-                            System.nanoTime() - started)
-            );
+        } catch (RestClientException error) {
+            return new ProcessResult(true, -1, "", "Sandbox runner request failed: " + error.getMessage(),
+                    "unavailable", elapsedMillis(started), false);
         }
     }
+
+    private static String string(Object value) { return value == null ? "" : value.toString(); }
+    private static int integer(Object value, int fallback) { return value instanceof Number n ? n.intValue() : fallback; }
+    private static long longValue(Object value, long fallback) { return value instanceof Number n ? n.longValue() : fallback; }
+    private static long elapsedMillis(long started) { return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started); }
 
     public Diagnostic unavailable(String tool) {
         return new Diagnostic(
@@ -159,6 +81,8 @@ public class CodeExecutionService {
             int exitCode,
             String stdout,
             String stderr,
-            long durationMillis
+            String phase,
+            long durationMillis,
+            boolean timedOut
     ) { }
 }
